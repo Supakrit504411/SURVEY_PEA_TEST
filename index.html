@@ -572,14 +572,29 @@
         let distanceLabel = null;
         let watchId = null;
 
-        // ฟังก์ชันสำหรับ Sweet Alert ที่ปรับแต่งสำหรับมือถือ
+        // ฟังก์ชันสำหรับ Sweet Alert ที่ปรับแต่งสำหรับมือถือ (แก้ไขปัญหาหายไปเร็ว)
         function showMobileFriendlyAlert(options) {
             // ตรวจสอบว่าเป็นมือถือหรือไม่
             const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             
+            // การตั้งค่าพื้นฐานที่ป้องกันการปิดอัตโนมัติ
             const defaultOptions = {
                 allowOutsideClick: false,
                 allowEscapeKey: false,
+                backdrop: true,
+                focusConfirm: false,
+                focusCancel: false,
+                focusDeny: false,
+                // ปิดการใช้งาน timer ทั้งหมดเพื่อป้องกันการหายไปอัตโนมัติ
+                timer: undefined,
+                timerProgressBar: false,
+                showConfirmButton: true,
+                // ป้องกันการกด Enter หรือ Space โดยไม่ตั้งใจ
+                stopKeydownPropagation: true,
+                // เพิ่มการป้องกันการปิดจากภายนอก
+                heightAuto: false,
+                scrollbarPadding: false,
+                // ป้องกันการ auto-close
                 showClass: {
                     popup: 'animate__animated animate__fadeIn animate__faster'
                 },
@@ -589,6 +604,8 @@
             };
             
             if (isMobile) {
+                console.log('🔧 กำลังแสดง Sweet Alert สำหรับมือถือ...');
+                
                 // เพิ่มการตั้งค่าพิเศษสำหรับมือถือ
                 defaultOptions.customClass = {
                     popup: 'swal2-mobile-popup',
@@ -600,26 +617,162 @@
                     denyButton: 'swal2-mobile-deny'
                 };
                 
-                // ป้องกันการ zoom บนมือถือ
-                defaultOptions.didOpen = () => {
+                // ป้องกันการ zoom บนมือถือและตั้งค่าเพิ่มเติม
+                defaultOptions.didOpen = (popup) => {
+                    console.log('📱 Sweet Alert เปิดบนมือถือ - ตั้งค่าป้องกันการปิดอัตโนมัติ');
+                    
+                    // ป้องกันการ zoom และการปิดอัตโนมัติ
                     const viewport = document.querySelector('meta[name=viewport]');
                     if (viewport) {
                         viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
                     }
+                    
+                    // ตั้งค่า popup ให้แน่นอน
+                    popup.style.position = 'fixed !important';
+                    popup.style.zIndex = '20000 !important';
+                    popup.style.top = '50% !important';
+                    popup.style.left = '50% !important';
+                    popup.style.transform = 'translate(-50%, -50%) !important';
+                    popup.style.webkitTransform = 'translate(-50%, -50%) !important';
+                    popup.style.maxWidth = 'calc(100vw - 40px) !important';
+                    popup.style.width = 'auto !important';
+                    popup.style.margin = '0 !important';
+                    
+                    // ป้องกันการ scroll ของ body
+                    document.body.style.overflow = 'hidden';
+                    document.body.style.position = 'fixed';
+                    document.body.style.width = '100%';
+                    document.body.style.height = '100%';
+                    
+                    // ป้องกันการปิดจาก touch events
+                    popup.addEventListener('touchstart', function(e) {
+                        e.stopPropagation();
+                    }, { passive: false });
+                    
+                    popup.addEventListener('touchmove', function(e) {
+                        e.stopPropagation();
+                    }, { passive: false });
+                    
+                    popup.addEventListener('touchend', function(e) {
+                        e.stopPropagation();
+                    }, { passive: false });
+                    
+                    // เพิ่ม event listener เพื่อป้องกันการกดผิดและการปิดอัตโนมัติ
+                    const buttons = popup.querySelectorAll('.swal2-confirm, .swal2-cancel, .swal2-deny');
+                    buttons.forEach((button, index) => {
+                        console.log(`🔘 ตั้งค่าปุ่ม ${index + 1}: ${button.textContent}`);
+                        
+                        button.style.minHeight = '50px !important';
+                        button.style.fontSize = '16px !important';
+                        button.style.padding = '15px 20px !important';
+                        button.style.margin = '5px !important';
+                        button.style.touchAction = 'manipulation !important';
+                        button.style.webkitTouchCallout = 'none !important';
+                        button.style.webkitUserSelect = 'none !important';
+                        button.style.userSelect = 'none !important';
+                        button.style.webkitTapHighlightColor = 'transparent !important';
+                        button.style.outline = 'none !important';
+                        button.style.border = '2px solid transparent !important';
+                        button.style.borderRadius = '8px !important';
+                        button.style.fontWeight = '600 !important';
+                        
+                        // เพิ่มการป้องกันการกดซ้ำและการปิดอัตโนมัติ
+                        let isProcessing = false;
+                        
+                        // ลบ event listeners เก่าทั้งหมด
+                        const newButton = button.cloneNode(true);
+                        button.parentNode.replaceChild(newButton, button);
+                        
+                        // เพิ่ม event listener ใหม่
+                        newButton.addEventListener('click', function(e) {
+                            console.log(`🖱️ ปุ่มถูกกด: ${this.textContent}`);
+                            
+                            if (isProcessing) {
+                                console.log('⚠️ ป้องกันการกดซ้ำ');
+                                e.preventDefault();
+                                e.stopPropagation();
+                                return false;
+                            }
+                            
+                            isProcessing = true;
+                            console.log('✅ ประมวลผลการกดปุ่ม...');
+                            
+                            // รีเซ็ตหลังจาก 2 วินาที
+                            setTimeout(() => {
+                                isProcessing = false;
+                                console.log('🔄 รีเซ็ตสถานะปุ่ม');
+                            }, 2000);
+                        }, { passive: false });
+                        
+                        // เพิ่ม touch events สำหรับมือถือ
+                        newButton.addEventListener('touchstart', function(e) {
+                            console.log(`👆 Touch start: ${this.textContent}`);
+                            e.stopPropagation();
+                            this.style.transform = 'scale(0.95)';
+                        }, { passive: false });
+                        
+                        newButton.addEventListener('touchend', function(e) {
+                            console.log(`👆 Touch end: ${this.textContent}`);
+                            e.stopPropagation();
+                            this.style.transform = 'scale(1)';
+                        }, { passive: false });
+                    });
+                    
+                    // ป้องกันการปิดจาก backdrop
+                    const backdrop = document.querySelector('.swal2-backdrop');
+                    if (backdrop) {
+                        backdrop.addEventListener('click', function(e) {
+                            console.log('🚫 ป้องกันการปิดจาก backdrop');
+                            e.preventDefault();
+                            e.stopPropagation();
+                            return false;
+                        }, { passive: false });
+                    }
+                    
+                    console.log('✅ Sweet Alert พร้อมใช้งานบนมือถือ');
                 };
                 
                 defaultOptions.didClose = () => {
+                    console.log('🔒 Sweet Alert ปิดแล้ว - คืนค่าการตั้งค่า');
+                    
+                    // คืนค่าการตั้งค่า viewport
                     const viewport = document.querySelector('meta[name=viewport]');
                     if (viewport) {
                         viewport.setAttribute('content', 'width=device-width, initial-scale=1.0');
                     }
+                    
+                    // คืนค่าการ scroll ของ body
+                    document.body.style.overflow = '';
+                    document.body.style.position = '';
+                    document.body.style.width = '';
+                    document.body.style.height = '';
                 };
+                
+                // บังคับปิดการใช้งาน timer สำหรับมือถือ
+                defaultOptions.timer = undefined;
+                defaultOptions.timerProgressBar = false;
             }
             
-            return Swal.fire({
-                ...defaultOptions,
-                ...options
+            // รวมตัวเลือกที่ส่งเข้ามา แต่ให้ความสำคัญกับการตั้งค่าความปลอดภัย
+            const finalOptions = {
+                ...options, // ใส่ options ก่อน
+                ...defaultOptions, // แล้วเขียนทับด้วย defaultOptions
+                // บังคับให้ตัวเลือกสำคัญไม่ถูกเขียนทับ (ป้องกันการปิดอัตโนมัติ)
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                backdrop: true,
+                timer: undefined, // บังคับไม่ให้มี timer
+                timerProgressBar: false
+            };
+            
+            console.log('🚀 แสดง Sweet Alert ด้วยการตั้งค่า:', {
+                isMobile,
+                hasTimer: !!finalOptions.timer,
+                allowOutsideClick: finalOptions.allowOutsideClick,
+                allowEscapeKey: finalOptions.allowEscapeKey
             });
+            
+            return Swal.fire(finalOptions);
         }
 
         // เริ่มต้นแอป
@@ -1039,15 +1192,13 @@
         async function showDashboardModal() {
             // ตรวจสอบว่ามีข้อมูลที่ยังไม่ได้บันทึกหรือไม่
             if (isProjectFinished && surveyPoints.length > 0) {
-                const saveResult = await Swal.fire({
+                const saveResult = await showMobileFriendlyAlert({
                     title: 'คุณยังไม่ได้ทำการบันทึก',
                     text: 'ต้องการบันทึกหรือไม่?',
                     icon: 'question',
                     showCancelButton: true,
                     confirmButtonText: 'ใช่, บันทึก',
-                    cancelButtonText: 'ไม่',
-                    allowOutsideClick: false,
-                    allowEscapeKey: false
+                    cancelButtonText: 'ไม่'
                 });
                 
                 if (saveResult.isConfirmed) {
@@ -1057,12 +1208,11 @@
                         document.getElementById('dashboardFullscreen').classList.remove('hidden');
                         await loadDashboardData();
                     } catch (error) {
-                        Swal.fire({
+                        showMobileFriendlyAlert({
                             title: 'เกิดข้อผิดพลาด',
                             text: 'ไม่สามารถบันทึกข้อมูลได้',
                             icon: 'error',
-                            confirmButtonText: 'ตกลง',
-                            allowOutsideClick: false
+                            confirmButtonText: 'ตกลง'
                         });
                         return;
                     }
@@ -1523,36 +1673,38 @@
             });
         }
         
-        function confirmClearDataFromNav() {
+        async function confirmClearDataFromNav() {
             if (surveyPoints.length === 0) {
-                Swal.fire('ไม่มีข้อมูล', 'ไม่มีข้อมูลให้ล้าง', 'info');
+                showMobileFriendlyAlert({
+                    title: 'ไม่มีข้อมูล',
+                    text: 'ไม่มีข้อมูลให้ล้าง',
+                    icon: 'info',
+                    confirmButtonText: 'ตกลง'
+                });
                 return;
             }
             
-            Swal.fire({
+            const result = await showMobileFriendlyAlert({
                 title: 'ยืนยันการล้างข้อมูล',
                 text: `คุณแน่ใจหรือไม่ที่จะล้างข้อมูลทั้งหมด ${surveyPoints.length} จุดในโครงการนี้?`,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonText: 'ใช่, ล้างข้อมูล',
                 cancelButtonText: 'ยกเลิก',
-                confirmButtonColor: '#ef4444',
-                allowOutsideClick: false,
-                allowEscapeKey: false
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    resetSurveyData();
-                    Swal.fire({
-                        title: 'ล้างข้อมูลแล้ว!',
-                        text: 'ข้อมูลโครงการถูกล้างเรียบร้อยแล้ว',
-                        icon: 'success',
-                        timer: 2000,
-                        showConfirmButton: false,
-                        allowOutsideClick: false,
-                        allowEscapeKey: false
-                    });
-                }
+                confirmButtonColor: '#ef4444'
             });
+            
+            if (result.isConfirmed) {
+                resetSurveyData();
+                showMobileFriendlyAlert({
+                    title: 'ล้างข้อมูลแล้ว!',
+                    text: 'ข้อมูลโครงการถูกล้างเรียบร้อยแล้ว',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false,
+                    confirmButtonText: 'ตกลง'
+                });
+            }
         }
         
         function confirmClearData() {
@@ -1904,32 +2056,96 @@
                         params.append('documentUrl', point.documentUrl || '');
                         params.append('pointImageUrl', point.pointImageUrl || '');
                         
-                        // เพิ่มการส่งลิงก์เอกสารไปยังคอลัมน์ O "ลิงก์เอกสาร"
+                        // เพิ่มการส่งลิงก์เอกสารไปยังคอลัมน์ O "ลิงก์เอกสาร" (แก้ไขปัญหาไม่บันทึก)
                         let documentLinkUrl = '';
-                        if (point.documentUrl) {
+                        if (point.documentUrl && point.documentUrl.trim() !== '') {
+                            console.log('🔍 ตรวจสอบ URL เอกสารต้นฉบับ:', point.documentUrl);
+                            
                             // ตรวจสอบและแปลง Google Drive URL ให้เป็นรูปแบบที่เหมาะสม
                             if (point.documentUrl.includes('drive.google.com/uc?export=view&id=')) {
                                 const fileIdMatch = point.documentUrl.match(/id=([a-zA-Z0-9-_]+)/);
                                 if (fileIdMatch) {
-                                    documentLinkUrl = `https://lh3.googleusercontent.com/d/${fileIdMatch[1]}`;
+                                    const fileId = fileIdMatch[1];
+                                    // ใช้รูปแบบ Google Drive direct link สำหรับ PDF
+                                    documentLinkUrl = `https://drive.google.com/file/d/${fileId}/view`;
+                                    console.log('📄 แปลง URL สำหรับ PDF (รูปแบบ 1):', documentLinkUrl);
                                 }
                             } else if (point.documentUrl.includes('drive.google.com/uc?id=')) {
                                 const fileIdMatch = point.documentUrl.match(/id=([a-zA-Z0-9-_]+)/);
                                 if (fileIdMatch) {
-                                    documentLinkUrl = `https://lh3.googleusercontent.com/d/${fileIdMatch[1]}`;
+                                    const fileId = fileIdMatch[1];
+                                    // ใช้รูปแบบ Google Drive direct link สำหรับ PDF
+                                    documentLinkUrl = `https://drive.google.com/file/d/${fileId}/view`;
+                                    console.log('📄 แปลง URL สำหรับ PDF (รูปแบบ 2):', documentLinkUrl);
                                 }
+                            } else if (point.documentUrl.includes('drive.google.com/file/d/')) {
+                                // URL อยู่ในรูปแบบที่ถูกต้องแล้ว แต่ตรวจสอบว่าลงท้ายด้วย /view หรือไม่
+                                if (point.documentUrl.includes('/view')) {
+                                    documentLinkUrl = point.documentUrl;
+                                } else {
+                                    // เพิ่ม /view ถ้ายังไม่มี
+                                    const fileIdMatch = point.documentUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+                                    if (fileIdMatch) {
+                                        const fileId = fileIdMatch[1];
+                                        documentLinkUrl = `https://drive.google.com/file/d/${fileId}/view`;
+                                    } else {
+                                        documentLinkUrl = point.documentUrl;
+                                    }
+                                }
+                                console.log('📄 URL อยู่ในรูปแบบที่ถูกต้องแล้ว:', documentLinkUrl);
                             } else if (point.documentUrl.includes('drive.google.com')) {
-                                const fileIdMatch = point.documentUrl.match(/\/d\/([a-zA-Z0-9-_]+)/) || point.documentUrl.match(/id=([a-zA-Z0-9-_]+)/);
+                                // ลองหา file ID จากรูปแบบอื่นๆ
+                                const fileIdMatch = point.documentUrl.match(/\/d\/([a-zA-Z0-9-_]+)/) || 
+                                                  point.documentUrl.match(/id=([a-zA-Z0-9-_]+)/) ||
+                                                  point.documentUrl.match(/file\/d\/([a-zA-Z0-9-_]+)/);
                                 if (fileIdMatch) {
-                                    documentLinkUrl = `https://lh3.googleusercontent.com/d/${fileIdMatch[1]}`;
+                                    const fileId = fileIdMatch[1];
+                                    // ใช้รูปแบบ Google Drive direct link สำหรับ PDF
+                                    documentLinkUrl = `https://drive.google.com/file/d/${fileId}/view`;
+                                    console.log('📄 แปลง URL สำหรับ PDF (รูปแบบ 3):', documentLinkUrl);
+                                } else {
+                                    // ถ้าหา file ID ไม่ได้ ให้ใช้ URL เดิม
+                                    documentLinkUrl = point.documentUrl;
+                                    console.log('⚠️ ไม่พบ file ID - ใช้ URL เดิม:', documentLinkUrl);
                                 }
                             } else {
-                                documentLinkUrl = point.documentUrl; // ใช้ URL เดิมถ้าไม่ใช่ Google Drive
+                                // ไม่ใช่ Google Drive URL ให้ใช้ URL เดิม
+                                documentLinkUrl = point.documentUrl;
+                                console.log('📄 ใช้ URL เดิม (ไม่ใช่ Google Drive):', documentLinkUrl);
                             }
                             
-                            params.append('documentLinkUrl', documentLinkUrl);
-                            console.log('📄 บันทึกลิงก์เอกสาร:', documentLinkUrl);
+                            // ตรวจสอบและบันทึกลิงก์เอกสาร
+                            if (documentLinkUrl && documentLinkUrl.trim() !== '') {
+                                // บังคับให้ส่งลิงก์เอกสารไปยังคอลัมน์ O
+                                params.append('documentLinkUrl', documentLinkUrl.trim());
+                                console.log('✅ บันทึกลิงก์เอกสารไปยังคอลัมน์ O (ลิงก์เอกสาร):', documentLinkUrl.trim());
+                                
+                                // เพิ่มการตรวจสอบเพิ่มเติม - ส่งทั้ง documentUrl และ documentLinkUrl
+                                if (point.documentUrl !== documentLinkUrl) {
+                                    console.log('🔄 URL ต้นฉบับ:', point.documentUrl);
+                                    console.log('🔄 URL ที่แปลงแล้ว:', documentLinkUrl);
+                                }
+                            } else {
+                                console.log('❌ ไม่สามารถสร้าง documentLinkUrl ได้');
+                                // ลองใช้ URL เดิมเป็นทางเลือกสุดท้าย
+                                if (point.documentUrl && point.documentUrl.trim() !== '') {
+                                    params.append('documentLinkUrl', point.documentUrl.trim());
+                                    console.log('🔄 ใช้ URL เดิมแทน:', point.documentUrl.trim());
+                                } else {
+                                    console.log('❌ ไม่มี URL เอกสารให้บันทึก');
+                                }
+                            }
+                        } else {
+                            console.log('📭 ไม่มีเอกสารแนบในจุดนี้');
                         }
+                        
+                        // เพิ่มการ debug เพื่อตรวจสอบว่าข้อมูลถูกส่งไปหรือไม่
+                        console.log('📋 ข้อมูลที่จะส่งไป Google Sheets:');
+                        console.log('- surveyor:', currentSurveyor);
+                        console.log('- project:', currentProject);
+                        console.log('- pointNumber:', point.pointNumber);
+                        console.log('- documentUrl:', point.documentUrl || 'ไม่มี');
+                        console.log('- documentLinkUrl:', params.get('documentLinkUrl') || 'ไม่มี');
                         
                         const response = await fetch(SCRIPT_URL, {
                             method: 'POST',
@@ -1968,13 +2184,17 @@
 
         async function saveAllData() {
             if (surveyPoints.length === 0) {
-                Swal.fire('ไม่มีข้อมูล', 'กรุณาเพิ่มจุดสำรวจก่อนบันทึก', 'warning');
+                showMobileFriendlyAlert({
+                    title: 'ไม่มีข้อมูล',
+                    text: 'กรุณาเพิ่มจุดสำรวจก่อนบันทึก',
+                    icon: 'warning',
+                    confirmButtonText: 'ตกลง'
+                });
                 return;
             }
             
-            Swal.fire({
+            showMobileFriendlyAlert({
                 title: 'กำลังบันทึกข้อมูล...',
-                allowOutsideClick: false,
                 didOpen: () => {
                     Swal.showLoading();
                 }
@@ -1983,19 +2203,25 @@
             try {
                 await saveAllDataToSheets();
                 
-                Swal.fire({
+                showMobileFriendlyAlert({
                     title: 'บันทึกสำเร็จ!',
                     text: `บันทึกข้อมูล ${surveyPoints.length} จุดเรียบร้อยแล้ว`,
                     icon: 'success',
                     timer: 3000,
-                    showConfirmButton: false
+                    showConfirmButton: false,
+                    confirmButtonText: 'ตกลง'
                 });
                 
                 resetSurveyData();
                 
             } catch (error) {
                 console.error('Error saving data:', error);
-                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้: ' + error.message, 'error');
+                showMobileFriendlyAlert({
+                    title: 'เกิดข้อผิดพลาด',
+                    text: 'ไม่สามารถบันทึกข้อมูลได้: ' + error.message,
+                    icon: 'error',
+                    confirmButtonText: 'ตกลง'
+                });
             }
         }
 
@@ -2080,9 +2306,8 @@
 
         async function loadDashboardData() {
             try {
-                Swal.fire({
+                showMobileFriendlyAlert({
                     title: 'กำลังโหลดข้อมูล...',
-                    allowOutsideClick: false,
                     didOpen: () => {
                         Swal.showLoading();
                     }
@@ -2155,7 +2380,7 @@
                 if (data && data.length > 0 && !data.some(row => row[11] === 'เขียนผังแล้ว')) {
                     const localDataCount = JSON.parse(localStorage.getItem('surveyData') || '[]').length;
                     if (localDataCount > 0) {
-                        Swal.fire({
+                        showMobileFriendlyAlert({
                             title: '📱 ข้อมูลจากเครื่อง',
                             html: `
                                 <p>แสดงข้อมูลที่บันทึกในเครื่อง</p>
@@ -2200,7 +2425,7 @@
                         filteredProjectData = [...allProjectData];
                         updateDashboardDisplay(allProjectData);
                         
-                        Swal.fire({
+                        showMobileFriendlyAlert({
                             title: 'โหลดข้อมูลสำรอง',
                             text: 'แสดงข้อมูลที่บันทึกในเครื่อง',
                             icon: 'info',
@@ -2766,7 +2991,12 @@
                 
             } catch (error) {
                 console.error('Error in showImagePreview:', error);
-                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถแสดงภาพได้', 'error');
+                showMobileFriendlyAlert({
+                    title: 'เกิดข้อผิดพลาด',
+                    text: 'ไม่สามารถแสดงภาพได้',
+                    icon: 'error',
+                    confirmButtonText: 'ตกลง'
+                });
             }
         }
         
@@ -3016,18 +3246,24 @@
                     'อัปเดตสถานะโครงการเรียบร้อยแล้ว' : 
                     'อัปเดตสถานะในเครื่องเรียบร้อยแล้ว (ยังไม่ได้ซิงค์กับ Google Sheets)';
                 
-                Swal.fire({
+                showMobileFriendlyAlert({
                     title: 'อัปเดตสำเร็จ!',
                     text: message,
                     icon: 'success',
                     timer: 2000,
-                    showConfirmButton: false
+                    showConfirmButton: false,
+                    confirmButtonText: 'ตกลง'
                 });
                 
             } catch (error) {
                 console.error('Error updating status:', error);
                 hideLoadingOverlay();
-                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถอัปเดตสถานะได้: ' + error.message, 'error');
+                showMobileFriendlyAlert({
+                    title: 'เกิดข้อผิดพลาด',
+                    text: 'ไม่สามารถอัปเดตสถานะได้: ' + error.message,
+                    icon: 'error',
+                    confirmButtonText: 'ตกลง'
+                });
             }
         }
 
@@ -3036,11 +3272,16 @@
                 const localData = JSON.parse(localStorage.getItem('surveyData') || '[]');
                 
                 if (localData.length === 0) {
-                    Swal.fire('ไม่มีข้อมูล', 'ไม่มีข้อมูลในเครื่องให้ส่งออก', 'info');
+                    showMobileFriendlyAlert({
+                        title: 'ไม่มีข้อมูล',
+                        text: 'ไม่มีข้อมูลในเครื่องให้ส่งออก',
+                        icon: 'info',
+                        confirmButtonText: 'ตกลง'
+                    });
                     return;
                 }
                 
-                const result = await Swal.fire({
+                const result = await showMobileFriendlyAlert({
                     title: 'ส่งออกข้อมูล',
                     html: `
                         <p>พบข้อมูล ${localData.length} โครงการในเครื่อง</p>
@@ -3066,7 +3307,12 @@
                 
             } catch (error) {
                 console.error('Error exporting data:', error);
-                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถส่งออกข้อมูลได้', 'error');
+                showMobileFriendlyAlert({
+                    title: 'เกิดข้อผิดพลาด',
+                    text: 'ไม่สามารถส่งออกข้อมูลได้',
+                    icon: 'error',
+                    confirmButtonText: 'ตกลง'
+                });
             }
         }
         
@@ -3082,12 +3328,13 @@
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
             
-            Swal.fire({
+            showMobileFriendlyAlert({
                 title: 'ส่งออกสำเร็จ!',
                 text: 'ไฟล์ JSON ถูกดาวน์โหลดเรียบร้อยแล้ว',
                 icon: 'success',
                 timer: 2000,
-                showConfirmButton: false
+                showConfirmButton: false,
+                confirmButtonText: 'ตกลง'
             });
         }
         
@@ -3126,12 +3373,13 @@
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
             
-            Swal.fire({
+            showMobileFriendlyAlert({
                 title: 'ส่งออกสำเร็จ!',
                 text: 'ไฟล์ CSV ถูกดาวน์โหลดเรียบร้อยแล้ว',
                 icon: 'success',
                 timer: 2000,
-                showConfirmButton: false
+                showConfirmButton: false,
+                confirmButtonText: 'ตกลง'
             });
         }
 
@@ -3157,12 +3405,13 @@
                         
                         hideLoadingOverlay();
                         
-                        Swal.fire({
+                        showMobileFriendlyAlert({
                             title: 'ดาวน์โหลดสำเร็จ!',
                             text: 'ไฟล์ KML ถูกดาวน์โหลดเรียบร้อยแล้ว',
                             icon: 'success',
                             timer: 2000,
-                            showConfirmButton: false
+                            showConfirmButton: false,
+                            confirmButtonText: 'ตกลง'
                         });
                         return;
                     }
@@ -3192,18 +3441,24 @@
                 
                 hideLoadingOverlay();
                 
-                Swal.fire({
+                showMobileFriendlyAlert({
                     title: 'ดาวน์โหลดสำเร็จ!',
                     text: 'ไฟล์ KML ถูกสร้างเรียบร้อยแล้ว',
                     icon: 'success',
                     timer: 2000,
-                    showConfirmButton: false
+                    showConfirmButton: false,
+                    confirmButtonText: 'ตกลง'
                 });
                 
             } catch (error) {
                 console.error('Error downloading KML:', error);
                 hideLoadingOverlay();
-                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถดาวน์โหลดไฟล์ KML ได้: ' + error.message, 'error');
+                showMobileFriendlyAlert({
+                    title: 'เกิดข้อผิดพลาด',
+                    text: 'ไม่สามารถดาวน์โหลดไฟล์ KML ได้: ' + error.message,
+                    icon: 'error',
+                    confirmButtonText: 'ตกลง'
+                });
             }
         }
         
@@ -3351,5 +3606,5 @@
             return kml;
         }
     </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'990a2462e544a1b7',t:'MTc2MDgxMjU5Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'990a3961115d8963',t:'MTc2MDgxMzQ1NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
