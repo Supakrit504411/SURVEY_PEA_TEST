@@ -429,6 +429,7 @@
          <th class="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-200" onclick="sortTable('distance')">ระยะทางรวม (เมตร) <span class="text-xs">↕️</span></th>
          <th class="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase">ภาพแผนที่</th>
          <th class="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase">ภาพจุดเชื่อมต่อ</th>
+         <th class="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase">ลิงก์เอกสาร</th>
          <th class="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-200" onclick="sortTable('status')">สถานะ <span class="text-xs">↕️</span></th>
          <th class="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-200" onclick="sortTable('date')">วันที่ <span class="text-xs">↕️</span></th>
          <th class="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase">ดาวน์โหลด KML</th>
@@ -904,7 +905,8 @@
                     showCancelButton: true,
                     confirmButtonText: 'ใช่, บันทึก',
                     cancelButtonText: 'ไม่',
-                    allowOutsideClick: false
+                    allowOutsideClick: false,
+                    allowEscapeKey: false
                 });
                 
                 if (saveResult.isConfirmed) {
@@ -1080,7 +1082,8 @@
                 showCancelButton: true,
                 confirmButtonText: 'ใช่, ปักหมุด',
                 cancelButtonText: 'ยกเลิก',
-                allowOutsideClick: false
+                allowOutsideClick: false,
+                allowEscapeKey: false
             });
             
             if (result.isConfirmed) {
@@ -1109,7 +1112,8 @@
                     showCancelButton: true,
                     confirmButtonText: 'ใช่, สำรวจต่อ',
                     cancelButtonText: 'ไม่ใช่',
-                    allowOutsideClick: false
+                    allowOutsideClick: false,
+                    allowEscapeKey: false
                 });
                 
                 if (!continueResult.isConfirmed) {
@@ -1133,7 +1137,8 @@
                 showCancelButton: true,
                 confirmButtonText: 'ใช่, ปักหมุด',
                 cancelButtonText: 'ยกเลิก',
-                allowOutsideClick: false
+                allowOutsideClick: false,
+                allowEscapeKey: false
             });
             
             if (result.isConfirmed) {
@@ -1258,11 +1263,13 @@
                 // บันทึกจุดสุดท้าย
                 await saveCurrentPoint();
                 
-                // ลบเส้นประวัดระยะทางออก
-                clearDistanceLines();
-                
                 // ตั้งสถานะว่าโครงการเสร็จสิ้นแล้ว
                 isProjectFinished = true;
+                
+                // ลบเส้นประวัดระยะทางออกทันทีหลังจากเสร็จสิ้น
+                setTimeout(() => {
+                    clearDistanceLines();
+                }, 100);
                 
                 hidePointModal();
                 hideLoadingOverlay();
@@ -1360,7 +1367,9 @@
                 showCancelButton: true,
                 confirmButtonText: 'ใช่, ล้างข้อมูล',
                 cancelButtonText: 'ยกเลิก',
-                confirmButtonColor: '#ef4444'
+                confirmButtonColor: '#ef4444',
+                allowOutsideClick: false,
+                allowEscapeKey: false
             }).then((result) => {
                 if (result.isConfirmed) {
                     resetSurveyData();
@@ -1369,7 +1378,9 @@
                         text: 'ข้อมูลโครงการถูกล้างเรียบร้อยแล้ว',
                         icon: 'success',
                         timer: 2000,
-                        showConfirmButton: false
+                        showConfirmButton: false,
+                        allowOutsideClick: false,
+                        allowEscapeKey: false
                     });
                 }
             });
@@ -1383,7 +1394,9 @@
                 showCancelButton: true,
                 confirmButtonText: 'ใช่, ล้างข้อมูล',
                 cancelButtonText: 'ยกเลิก',
-                confirmButtonColor: '#ef4444'
+                confirmButtonColor: '#ef4444',
+                allowOutsideClick: false,
+                allowEscapeKey: false
             }).then((result) => {
                 if (result.isConfirmed) {
                     resetSurveyData();
@@ -1392,7 +1405,9 @@
                         text: 'ข้อมูลโครงการถูกล้างเรียบร้อยแล้ว',
                         icon: 'success',
                         timer: 2000,
-                        showConfirmButton: false
+                        showConfirmButton: false,
+                        allowOutsideClick: false,
+                        allowEscapeKey: false
                     });
                 }
             });
@@ -2145,25 +2160,22 @@
             
             data.forEach(row => {
                 const project = row[1];
-                const dateTime = row[10] || '';
                 
-                // สร้าง key ที่รวมชื่อโครงการและวันที่เวลา เพื่อแยกโครงการที่ชื่อซ้ำแต่วันที่ต่างกัน
-                const projectKey = `${project}_${dateTime}`;
-                
-                if (!projectSummary[projectKey]) {
-                    projectSummary[projectKey] = {
+                if (!projectSummary[project]) {
+                    projectSummary[project] = {
                         projectName: project,
                         surveyor: row[0],
                         distance: 0,
                         status: row[11] || 'ยังไม่เขียนผัง',
                         mapImageUrl: row[12] || '',
                         connectionImageUrl: row[13] || '',
-                        date: dateTime
+                        documentUrl: row[14] || '',
+                        date: row[10] || ''
                     };
                 }
                 
                 // คำนวณระยะทางสำหรับโครงการนี้
-                const projectData = data.filter(d => d[1] === project && d[10] === dateTime);
+                const projectData = data.filter(d => d[1] === project);
                 let totalDistance = 0;
                 for (let i = 1; i < projectData.length; i++) {
                     totalDistance += calculateDistance(
@@ -2171,7 +2183,7 @@
                         parseFloat(projectData[i][3]), parseFloat(projectData[i][4])
                     );
                 }
-                projectSummary[projectKey].distance = totalDistance;
+                projectSummary[project].distance = totalDistance;
             });
             
             currentProjectSummary = projectSummary;
@@ -2211,23 +2223,32 @@
                             if (parts.length === 3) {
                                 const day = parseInt(parts[0]);
                                 const month = parseInt(parts[1]) - 1; // JavaScript month เริ่มจาก 0
-                                const year = parseInt(parts[2]);
+                                let year = parseInt(parts[2]);
+                                
+                                // แก้ไขปีที่ผิดพลาด (3111 -> 2568)
+                                if (year === 3111) {
+                                    year = 2568;
+                                }
                                 
                                 // แปลงปี พ.ศ. เป็น ค.ศ. ถ้าจำเป็น
                                 const actualYear = year > 2500 ? year - 543 : year;
                                 date = new Date(actualYear, month, day);
+                                
+                                // แสดงวันที่ในรูปแบบ DD/MM/YYYY (พ.ศ.)
+                                const formattedDay = date.getDate().toString().padStart(2, '0');
+                                const formattedMonth = (date.getMonth() + 1).toString().padStart(2, '0');
+                                const formattedYear = year > 2500 ? year : year; // ใช้ปี พ.ศ.
+                                formattedDate = `${formattedDay}/${formattedMonth}/${formattedYear}`;
                             }
                         } else {
                             // ลองแปลงแบบปกติ
                             date = new Date(summary.date);
-                        }
-                        
-                        if (date && !isNaN(date.getTime())) {
-                            // แสดงวันที่ในรูปแบบ DD/MM/YYYY (พ.ศ.)
-                            const day = date.getDate().toString().padStart(2, '0');
-                            const month = (date.getMonth() + 1).toString().padStart(2, '0');
-                            const year = date.getFullYear() + 543; // แปลงเป็น พ.ศ.
-                            formattedDate = `${day}/${month}/${year}`;
+                            if (date && !isNaN(date.getTime())) {
+                                const day = date.getDate().toString().padStart(2, '0');
+                                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                                const year = date.getFullYear(); // แปลงเป็น พ.ศ.
+                                formattedDate = `${day}/${month}/${year}`;
+                            }
                         }
                     } catch (error) {
                         console.error('Error formatting date:', error);
@@ -2259,6 +2280,12 @@
                                onmouseover="showHoverImage(event, '${encodeURIComponent(summary.connectionImageUrl)}')" 
                                onmouseout="hideHoverImage()" 
                                class="text-blue-600 hover:underline">📷 ดูภาพ</a>
+                        ` : '-'}
+                    </td>
+                    <td class="px-6 py-4 text-sm">
+                        ${summary.documentUrl ? `
+                            <a href="${summary.documentUrl}" target="_blank" rel="noopener noreferrer" 
+                               class="text-blue-600 hover:underline">📄 ดูเอกสาร</a>
                         ` : '-'}
                     </td>
                     <td class="px-6 py-4 text-sm">
@@ -2597,7 +2624,7 @@
                         }
                         
                         if (date && !isNaN(date.getTime())) {
-                            const dataYear = date.getFullYear() + 543; // แปลงเป็น พ.ศ.
+                            const dataYear = date.getFullYear(); // แปลงเป็น พ.ศ.
                             return dataYear.toString() === yearFilter;
                         }
                         return false;
@@ -3048,5 +3075,5 @@
             return kml;
         }
     </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9909a069f2e8893d',t:'MTc2MDgwNzE5MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9909c4a665378961',t:'MTc2MDgwODY3NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
