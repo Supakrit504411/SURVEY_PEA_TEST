@@ -1026,7 +1026,7 @@
                     },
                     {
                         enableHighAccuracy: true,
-                        timeout: 10000,
+                        timeout: 100000,
                         maximumAge: 5000
                     }
                 );
@@ -1236,7 +1236,7 @@
                     confirmButtonText: 'ตกลง',
                     allowOutsideClick: false,
                     allowEscapeKey: false,
-                    timer: 3000
+                    timer: 30000
                 });
             } catch (error) {
                 hideLoadingOverlay();
@@ -1434,7 +1434,7 @@
                         title: 'ล้างข้อมูลแล้ว!',
                         text: 'ข้อมูลโครงการถูกล้างเรียบร้อยแล้ว',
                         icon: 'success',
-                        timer: 2000,
+                        timer: 20000,
                         showConfirmButton: false,
                         allowOutsideClick: false,
                         allowEscapeKey: false
@@ -1461,7 +1461,7 @@
                         title: 'ล้างข้อมูลแล้ว!',
                         text: 'ข้อมูลโครงการถูกล้างเรียบร้อยแล้ว',
                         icon: 'success',
-                        timer: 2000,
+                        timer: 20000,
                         showConfirmButton: false,
                         allowOutsideClick: false,
                         allowEscapeKey: false
@@ -1853,7 +1853,7 @@
                     title: 'บันทึกสำเร็จ!',
                     text: `บันทึกข้อมูล ${surveyPoints.length} จุดเรียบร้อยแล้ว`,
                     icon: 'success',
-                    timer: 3000,
+                    timer: 30000,
                     showConfirmButton: false
                 });
                 
@@ -2034,7 +2034,7 @@
                             `,
                             icon: 'info',
                             confirmButtonText: 'ตกลง',
-                            timer: 4000
+                            timer: 40000
                         });
                     }
                 }
@@ -2886,7 +2886,7 @@
                     title: 'อัปเดตสำเร็จ!',
                     text: message,
                     icon: 'success',
-                    timer: 2000,
+                    timer: 20000,
                     showConfirmButton: false
                 });
                 
@@ -2952,7 +2952,7 @@
                 title: 'ส่งออกสำเร็จ!',
                 text: 'ไฟล์ JSON ถูกดาวน์โหลดเรียบร้อยแล้ว',
                 icon: 'success',
-                timer: 2000,
+                timer: 20000,
                 showConfirmButton: false
             });
         }
@@ -2996,7 +2996,7 @@
                 title: 'ส่งออกสำเร็จ!',
                 text: 'ไฟล์ CSV ถูกดาวน์โหลดเรียบร้อยแล้ว',
                 icon: 'success',
-                timer: 2000,
+                timer: 20000,
                 showConfirmButton: false
             });
         }
@@ -3027,7 +3027,7 @@
                             title: 'ดาวน์โหลดสำเร็จ!',
                             text: 'ไฟล์ KML ถูกดาวน์โหลดเรียบร้อยแล้ว',
                             icon: 'success',
-                            timer: 2000,
+                            timer: 20000,
                             showConfirmButton: false
                         });
                         return;
@@ -3062,7 +3062,7 @@
                     title: 'ดาวน์โหลดสำเร็จ!',
                     text: 'ไฟล์ KML ถูกสร้างเรียบร้อยแล้ว',
                     icon: 'success',
-                    timer: 2000,
+                    timer: 20000,
                     showConfirmButton: false
                 });
                 
