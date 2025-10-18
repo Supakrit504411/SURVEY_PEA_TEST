@@ -607,7 +607,8 @@
                     `,
                     icon: 'warning',
                     confirmButtonText: 'ใช้ข้อมูลสำรอง',
-                    timer: 5000
+                    allowOutsideClick: false,
+                    allowEscapeKey: false
                 });
                 
             } catch (error) {
@@ -628,7 +629,9 @@
                     title: 'ข้อผิดพลาดการเชื่อมต่อ',
                     text: 'ใช้ข้อมูลสำรองเพื่อให้สามารถใช้งานได้',
                     icon: 'error',
-                    confirmButtonText: 'ตกลง'
+                    confirmButtonText: 'ตกลง',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false
                 });
             }
         }
@@ -972,7 +975,8 @@
                 text: 'คุณสามารถเริ่มปักหมุดจุดสำรวจได้แล้ว',
                 icon: 'success',
                 confirmButtonText: 'ตกลง',
-                allowOutsideClick: false
+                allowOutsideClick: false,
+                allowEscapeKey: false
             });
         }
 
@@ -1011,7 +1015,14 @@
                     (error) => {
                         console.error('Geolocation error:', error);
                         Swal.close();
-                        Swal.fire('ไม่สามารถหาตำแหน่งได้', 'กรุณาเปิด GPS และอนุญาตการเข้าถึงตำแหน่ง', 'error');
+                        Swal.fire({
+                            title: 'ไม่สามารถหาตำแหน่งได้',
+                            text: 'กรุณาเปิด GPS และอนุญาตการเข้าถึงตำแหน่ง',
+                            icon: 'error',
+                            confirmButtonText: 'ตกลง',
+                            allowOutsideClick: false,
+                            allowEscapeKey: false
+                        });
                     },
                     {
                         enableHighAccuracy: true,
@@ -1020,7 +1031,14 @@
                     }
                 );
             } else {
-                Swal.fire('ไม่รองรับ GPS', 'เบราว์เซอร์นี้ไม่รองรับการหาตำแหน่ง', 'error');
+                Swal.fire({
+                    title: 'ไม่รองรับ GPS',
+                    text: 'เบราว์เซอร์นี้ไม่รองรับการหาตำแหน่ง',
+                    icon: 'error',
+                    confirmButtonText: 'ตกลง',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false
+                });
             }
         }
         
@@ -1188,7 +1206,14 @@
             
             const poleType = document.getElementById('poleType').value;
             if (!poleType) {
-                Swal.fire('กรุณากรอกข้อมูล', 'กรุณาเลือกประเภทเสา', 'warning');
+                Swal.fire({
+                    title: 'กรุณากรอกข้อมูล',
+                    text: 'กรุณาเลือกประเภทเสา',
+                    icon: 'warning',
+                    confirmButtonText: 'ตกลง',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false
+                });
                 return;
             }
             
@@ -1208,12 +1233,21 @@
                     title: 'เพิ่มจุดสำเร็จ!',
                     text: 'กรุณาเลือกตำแหน่งจุดถัดไปบนแผนที่',
                     icon: 'success',
-                    timer: 2000,
-                    showConfirmButton: false
+                    confirmButtonText: 'ตกลง',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    timer: 3000
                 });
             } catch (error) {
                 hideLoadingOverlay();
-                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้', 'error');
+                Swal.fire({
+                    title: 'เกิดข้อผิดพลาด',
+                    text: 'ไม่สามารถบันทึกข้อมูลได้',
+                    icon: 'error',
+                    confirmButtonText: 'ตกลง',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false
+                });
             } finally {
                 isProcessing = false;
             }
@@ -1249,7 +1283,8 @@
                     text: 'กรุณาเลือกประเภทเสา',
                     icon: 'warning',
                     confirmButtonText: 'ตกลง',
-                    allowOutsideClick: false
+                    allowOutsideClick: false,
+                    allowEscapeKey: false
                 });
                 return;
             }
@@ -1266,11 +1301,10 @@
                 // ตั้งสถานะว่าโครงการเสร็จสิ้นแล้ว
                 isProjectFinished = true;
                 
-                // ลบเส้นประวัดระยะทางออกทันทีหลังจากเสร็จสิ้น
-                setTimeout(() => {
-                    clearDistanceLines();
-                }, 100);
+                // ลบเส้นประวัดระยะทางและ event listeners ทันที
+                clearAllDistanceElements();
                 
+                // ปิด Modal
                 hidePointModal();
                 hideLoadingOverlay();
                 
@@ -1280,7 +1314,8 @@
                     text: 'กรุณากดปุ่ม "บันทึก" ที่แถบเมนูเพื่อบันทึกข้อมูลทั้งหมด',
                     icon: 'success',
                     confirmButtonText: 'ตกลง',
-                    allowOutsideClick: false
+                    allowOutsideClick: false,
+                    allowEscapeKey: false
                 });
                 
             } catch (error) {
@@ -1291,7 +1326,8 @@
                     text: 'ไม่สามารถบันทึกข้อมูลได้: ' + error.message,
                     icon: 'error',
                     confirmButtonText: 'ตกลง',
-                    allowOutsideClick: false
+                    allowOutsideClick: false,
+                    allowEscapeKey: false
                 });
             } finally {
                 isProcessing = false;
@@ -1328,6 +1364,27 @@
                     console.error('Error removing distance label:', error);
                 }
             }
+        }
+        
+        function clearAllDistanceElements() {
+            console.log('🧹 ล้างเส้นประวัดระยะทางและ event listeners ทั้งหมด...');
+            
+            // ล้างเส้นประวัดระยะทาง
+            clearDistanceLines();
+            
+            // ลบ event listener สำหรับ mousemove
+            if (map) {
+                map.off('mousemove');
+                console.log('✅ ลบ mousemove event listener แล้ว');
+            }
+            
+            // รีเซ็ตตัวแปรที่เกี่ยวข้อง
+            distanceLabel = null;
+            
+            // อัปเดตการแสดงผลระยะทาง
+            document.getElementById('lastDistance').textContent = '0 ม.';
+            
+            console.log('🎉 ล้างเส้นประวัดระยะทางเสร็จสิ้น');
         }
         
         function showProjectCompletionOptions() {
@@ -1735,6 +1792,11 @@
                         params.append('documentUrl', point.documentUrl || '');
                         params.append('pointImageUrl', point.pointImageUrl || '');
                         
+                        // เพิ่มการส่งลิงก์เอกสารไปยังคอลัมน์ O
+                        if (point.documentUrl) {
+                            params.append('documentLinkUrl', point.documentUrl);
+                        }
+                        
                         const response = await fetch(SCRIPT_URL, {
                             method: 'POST',
                             headers: {
@@ -2025,14 +2087,17 @@
         }
 
         function updateDashboardDisplay(data) {
-            const projects = [...new Set(data.map(row => row[1]).filter(p => p))];
-            document.getElementById('totalProjects').textContent = projects.length;
-            document.getElementById('totalPointsAll').textContent = data.length;
+            // ใช้ข้อมูลที่กรองแล้วสำหรับการคำนวณสถิติ
+            const currentFilteredData = getCurrentFilteredData(data);
             
-            const totalDistanceAll = data.reduce((sum, row, index) => {
-                if (index > 0 && row[1] === data[index-1][1]) {
+            const projects = [...new Set(currentFilteredData.map(row => row[1]).filter(p => p))];
+            document.getElementById('totalProjects').textContent = projects.length;
+            document.getElementById('totalPointsAll').textContent = currentFilteredData.length;
+            
+            const totalDistanceAll = currentFilteredData.reduce((sum, row, index) => {
+                if (index > 0 && row[1] === currentFilteredData[index-1][1]) {
                     return sum + calculateDistance(
-                        parseFloat(data[index-1][3]), parseFloat(data[index-1][4]),
+                        parseFloat(currentFilteredData[index-1][3]), parseFloat(currentFilteredData[index-1][4]),
                         parseFloat(row[3]), parseFloat(row[4])
                     );
                 }
@@ -2041,10 +2106,57 @@
             
             document.getElementById('totalDistanceAll').textContent = `${Math.round(totalDistanceAll).toLocaleString('th-TH')} ม.`;
             
-            updateSurveyorStats(data, projects.length);
-            updateSurveyorFilter(data);
-            updateYearFilter(data);
+            updateSurveyorStats(currentFilteredData, projects.length);
+            updateSurveyorFilter(data); // ใช้ข้อมูลทั้งหมดสำหรับตัวกรอง
+            updateYearFilter(data); // ใช้ข้อมูลทั้งหมดสำหรับตัวกรอง
             updateProjectTable(data);
+        }
+        
+        function getCurrentFilteredData(data) {
+            const yearFilter = document.getElementById('filterYear')?.value;
+            
+            if (!yearFilter || yearFilter === '') {
+                return data;
+            }
+            
+            return data.filter(row => {
+                if (!row[10]) return false; // ไม่มีข้อมูลวันที่
+                try {
+                    let date;
+                    
+                    // ตรวจสอบรูปแบบวันที่
+                    if (row[10].includes('/')) {
+                        const parts = row[10].split(' ')[0].split('/');
+                        if (parts.length === 3) {
+                            const day = parseInt(parts[0]);
+                            const month = parseInt(parts[1]) - 1;
+                            let year = parseInt(parts[2]);
+                            
+                            // แก้ไขปีที่ผิดพลาด (3111 -> 2568)
+                            if (year === 3111) {
+                                year = 2568;
+                            }
+                            
+                            // แปลงปี พ.ศ. เป็น ค.ศ. ถ้าจำเป็น
+                            const actualYear = year > 2500 ? year - 543 : year;
+                            date = new Date(actualYear, month, day);
+                            
+                            // เปรียบเทียบกับปี พ.ศ.
+                            const dataYear = year > 2500 ? year : year;
+                            return dataYear.toString() === yearFilter;
+                        }
+                    } else {
+                        date = new Date(row[10]);
+                        if (date && !isNaN(date.getTime())) {
+                            const dataYear = date.getFullYear(); // แปลงเป็น พ.ศ.
+                            return dataYear.toString() === yearFilter;
+                        }
+                    }
+                    return false;
+                } catch (error) {
+                    return false;
+                }
+            });
         }
         
         function updateSurveyorStats(data, totalProjects) {
@@ -2613,19 +2725,27 @@
                             if (parts.length === 3) {
                                 const day = parseInt(parts[0]);
                                 const month = parseInt(parts[1]) - 1;
-                                const year = parseInt(parts[2]);
+                                let year = parseInt(parts[2]);
+                                
+                                // แก้ไขปีที่ผิดพลาด (3111 -> 2568)
+                                if (year === 3111) {
+                                    year = 2568;
+                                }
                                 
                                 // แปลงปี พ.ศ. เป็น ค.ศ. ถ้าจำเป็น
                                 const actualYear = year > 2500 ? year - 543 : year;
                                 date = new Date(actualYear, month, day);
+                                
+                                // เปรียบเทียบกับปี พ.ศ.
+                                const dataYear = year > 2500 ? year : year;
+                                return dataYear.toString() === yearFilter;
                             }
                         } else {
                             date = new Date(row[10]);
-                        }
-                        
-                        if (date && !isNaN(date.getTime())) {
-                            const dataYear = date.getFullYear(); // แปลงเป็น พ.ศ.
-                            return dataYear.toString() === yearFilter;
+                            if (date && !isNaN(date.getTime())) {
+                                const dataYear = date.getFullYear(); // แปลงเป็น พ.ศ.
+                                return dataYear.toString() === yearFilter;
+                            }
                         }
                         return false;
                     } catch (error) {
@@ -2634,7 +2754,29 @@
                 });
             }
             
+            // อัปเดตสถิติด้วยข้อมูลที่กรองแล้ว
+            updateDashboardStats(filteredData);
             updateProjectTable(filteredData);
+        }
+        
+        function updateDashboardStats(data) {
+            const projects = [...new Set(data.map(row => row[1]).filter(p => p))];
+            document.getElementById('totalProjects').textContent = projects.length;
+            document.getElementById('totalPointsAll').textContent = data.length;
+            
+            const totalDistanceAll = data.reduce((sum, row, index) => {
+                if (index > 0 && row[1] === data[index-1][1]) {
+                    return sum + calculateDistance(
+                        parseFloat(data[index-1][3]), parseFloat(data[index-1][4]),
+                        parseFloat(row[3]), parseFloat(row[4])
+                    );
+                }
+                return sum;
+            }, 0);
+            
+            document.getElementById('totalDistanceAll').textContent = `${Math.round(totalDistanceAll).toLocaleString('th-TH')} ม.`;
+            
+            updateSurveyorStats(data, projects.length);
         }
 
         function updateYearDisplay() {
@@ -3075,5 +3217,5 @@
             return kml;
         }
     </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9909c4a665378961',t:'MTc2MDgwODY3NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9909fe9ea5e7895a',t:'MTc2MDgxMTA0OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
