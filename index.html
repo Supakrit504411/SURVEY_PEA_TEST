@@ -496,7 +496,16 @@
         let watchId = null;
 
         // เริ่มต้นแอป
-        document.addEventListener('DOMContentLoaded', function() {
+        
+// SweetAlert2 defaults for mobile stability
+const Alert = Swal.mixin({
+  allowOutsideClick: false,
+  allowEscapeKey: false,
+  heightAuto: false,
+  showConfirmButton: true,
+  confirmButtonText: 'ตกลง'
+});
+document.addEventListener('DOMContentLoaded', function() {
             initializeApp();
         });
 
@@ -504,10 +513,10 @@
             try {
                 await loadDropdownOptions();
                 setupEventListeners();
-                initializeMap();
+                initializeMapWithRetry();
             } catch (error) {
                 console.error('Error initializing app:', error);
-                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถเริ่มต้นแอปได้', 'error');
+                Alert.fire('เกิดข้อผิดพลาด', 'ไม่สามารถเริ่มต้นแอปได้', 'error');
             }
         }
 
@@ -589,7 +598,7 @@
                 populateDropdowns();
                 
                 // แสดงข้อความแจ้งเตือน
-                Swal.fire({
+                Alert.fire({
                     title: '⚠️ ใช้ข้อมูลสำรอง',
                     html: `
                         <p>ไม่สามารถเชื่อมต่อ Google Sheets ได้</p>
@@ -625,7 +634,7 @@
                 
                 populateDropdowns();
                 
-                Swal.fire({
+                Alert.fire({
                     title: 'ข้อผิดพลาดการเชื่อมต่อ',
                     text: 'ใช้ข้อมูลสำรองเพื่อให้สามารถใช้งานได้',
                     icon: 'error',
@@ -790,14 +799,38 @@
             });
         }
 
-        function initializeMap() {
+        
+// Robust initializer to ensure Leaflet is loaded before creating the map
+function initializeMapWithRetry(maxRetries = 10, delay = 300) {
+  let tries = 0;
+  const tick = () => {
+    if (window.L && typeof L.map === 'function') {
+      try {
+        initializeMap();
+      } catch (err) {
+        console.error('initializeMap failed:', err);
+        Alert.fire('เกิดข้อผิดพลาด', 'ไม่สามารถเริ่มแผนที่ได้', 'error');
+      }
+      return;
+    }
+    tries++;
+    if (tries <= maxRetries) {
+      setTimeout(tick, delay);
+    } else {
+      console.error('Leaflet still not available after retries');
+      Alert.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดไลบรารีแผนที่ได้', 'error');
+    }
+  };
+  tick();
+}
+function initializeMap() {
             setTimeout(() => {
                 try {
                     console.log('Initializing map...');
                     
                     if (typeof L === 'undefined') {
                         console.error('Leaflet not loaded');
-                        Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดไลบรารีแผนที่ได้', 'error');
+                        Alert.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดไลบรารีแผนที่ได้', 'error');
                         return;
                     }
                     
@@ -847,7 +880,7 @@
                     console.log('Map initialized successfully');
                 } catch (error) {
                     console.error('Error initializing map:', error);
-                    Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดแผนที่ได้: ' + error.message, 'error');
+                    Alert.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดแผนที่ได้: ' + error.message, 'error');
                 }
             }, 300);
         }
@@ -901,7 +934,7 @@
         async function showDashboardModal() {
             // ตรวจสอบว่ามีข้อมูลที่ยังไม่ได้บันทึกหรือไม่
             if (isProjectFinished && surveyPoints.length > 0) {
-                const saveResult = await Swal.fire({
+                const saveResult = await Alert.fire({
                     title: 'คุณยังไม่ได้ทำการบันทึก',
                     text: 'ต้องการบันทึกหรือไม่?',
                     icon: 'question',
@@ -919,7 +952,7 @@
                         document.getElementById('dashboardFullscreen').classList.remove('hidden');
                         await loadDashboardData();
                     } catch (error) {
-                        Swal.fire({
+                        Alert.fire({
                             title: 'เกิดข้อผิดพลาด',
                             text: 'ไม่สามารถบันทึกข้อมูลได้',
                             icon: 'error',
@@ -949,7 +982,7 @@
             const project = document.getElementById('projectName').value;
             
             if (!surveyor || !project) {
-                Swal.fire({
+                Alert.fire({
                     title: 'กรุณากรอกข้อมูล',
                     text: 'กรุณาเลือกผู้สำรวจและกรอกชื่อโครงการ',
                     icon: 'warning',
@@ -970,7 +1003,7 @@
             
             hideNewProjectModal();
             
-            Swal.fire({
+            Alert.fire({
                 title: 'เริ่มโครงการแล้ว!',
                 text: 'คุณสามารถเริ่มปักหมุดจุดสำรวจได้แล้ว',
                 icon: 'success',
@@ -982,7 +1015,7 @@
 
         function getCurrentLocation() {
             if (navigator.geolocation) {
-                Swal.fire({
+                Alert.fire({
                     title: 'กำลังค้นหาตำแหน่ง...',
                     allowOutsideClick: false,
                     didOpen: () => {
@@ -1015,7 +1048,7 @@
                     (error) => {
                         console.error('Geolocation error:', error);
                         Swal.close();
-                        Swal.fire({
+                        Alert.fire({
                             title: 'ไม่สามารถหาตำแหน่งได้',
                             text: 'กรุณาเปิด GPS และอนุญาตการเข้าถึงตำแหน่ง',
                             icon: 'error',
@@ -1031,7 +1064,7 @@
                     }
                 );
             } else {
-                Swal.fire({
+                Alert.fire({
                     title: 'ไม่รองรับ GPS',
                     text: 'เบราว์เซอร์นี้ไม่รองรับการหาตำแหน่ง',
                     icon: 'error',
@@ -1083,7 +1116,7 @@
 
         async function confirmAddPoint() {
             if (!currentSurveyor || !currentProject) {
-                Swal.fire({
+                Alert.fire({
                     title: 'กรุณาเริ่มโครงการ',
                     text: 'กรุณาเริ่มโครงการใหม่ก่อนปักหมุด',
                     icon: 'warning',
@@ -1093,7 +1126,7 @@
                 return;
             }
             
-            const result = await Swal.fire({
+            const result = await Alert.fire({
                 title: 'ยืนยันการปักหมุด',
                 text: `ต้องการปักหมุดจุดที่ ${currentPointNumber} ใช่หรือไม่?`,
                 icon: 'question',
@@ -1111,7 +1144,7 @@
 
         async function confirmAddPointAtLocation(latlng) {
             if (!currentSurveyor || !currentProject) {
-                Swal.fire({
+                Alert.fire({
                     title: 'กรุณาเริ่มโครงการ',
                     text: 'กรุณาเริ่มโครงการใหม่ก่อนปักหมุด',
                     icon: 'warning',
@@ -1123,7 +1156,7 @@
             
             // ตรวจสอบว่าโครงการเสร็จสิ้นแล้วหรือไม่
             if (isProjectFinished) {
-                const continueResult = await Swal.fire({
+                const continueResult = await Alert.fire({
                     title: 'สำรวจต่อหรือไม่?',
                     text: 'คุณได้เสร็จสิ้นการสำรวจแล้ว ต้องการสำรวจต่อใช่หรือไม่?',
                     icon: 'question',
@@ -1148,7 +1181,7 @@
                 }
             }
             
-            const result = await Swal.fire({
+            const result = await Alert.fire({
                 title: 'ยืนยันการปักหมุด',
                 text: `ต้องการปักหมุดจุดที่ ${currentPointNumber} ที่ตำแหน่งนี้ใช่หรือไม่?`,
                 icon: 'question',
@@ -1206,7 +1239,7 @@
             
             const poleType = document.getElementById('poleType').value;
             if (!poleType) {
-                Swal.fire({
+                Alert.fire({
                     title: 'กรุณากรอกข้อมูล',
                     text: 'กรุณาเลือกประเภทเสา',
                     icon: 'warning',
@@ -1229,18 +1262,16 @@
                 hidePointModal();
                 hideLoadingOverlay();
                 
-                Swal.fire({
+                Alert.fire({
                     title: 'เพิ่มจุดสำเร็จ!',
                     text: 'กรุณาเลือกตำแหน่งจุดถัดไปบนแผนที่',
                     icon: 'success',
                     confirmButtonText: 'ตกลง',
                     allowOutsideClick: false,
-                    allowEscapeKey: false,
-                    heightAuto: false
-                });
+                    allowEscapeKey: false,});
             } catch (error) {
                 hideLoadingOverlay();
-                Swal.fire({
+                Alert.fire({
                     title: 'เกิดข้อผิดพลาด',
                     text: 'ไม่สามารถบันทึกข้อมูลได้',
                     icon: 'error',
@@ -1278,7 +1309,7 @@
         async function finishPoint() {
             const poleType = document.getElementById('poleType').value;
             if (!poleType) {
-                Swal.fire({
+                Alert.fire({
                     title: 'กรุณากรอกข้อมูล',
                     text: 'กรุณาเลือกประเภทเสา',
                     icon: 'warning',
@@ -1309,7 +1340,7 @@
                 hideLoadingOverlay();
                 
                 // แสดงข้อความแจ้งเตือนให้ผู้ใช้บันทึกข้อมูล
-                Swal.fire({
+                Alert.fire({
                     title: 'เสร็จสิ้นการปักหมุด!',
                     text: 'กรุณากดปุ่ม "บันทึก" ที่แถบเมนูเพื่อบันทึกข้อมูลทั้งหมด',
                     icon: 'success',
@@ -1321,7 +1352,7 @@
             } catch (error) {
                 console.error('Error finishing point:', error);
                 hideLoadingOverlay();
-                Swal.fire({
+                Alert.fire({
                     title: 'เกิดข้อผิดพลาด',
                     text: 'ไม่สามารถบันทึกข้อมูลได้: ' + error.message,
                     icon: 'error',
@@ -1388,7 +1419,7 @@
         }
         
         function showProjectCompletionOptions() {
-            Swal.fire({
+            Alert.fire({
                 title: 'โครงการเสร็จสิ้น!',
                 text: 'คุณต้องการทำอะไรกับข้อมูลที่สำรวจแล้ว?',
                 icon: 'success',
@@ -1413,11 +1444,11 @@
         
         function confirmClearDataFromNav() {
             if (surveyPoints.length === 0) {
-                Swal.fire('ไม่มีข้อมูล', 'ไม่มีข้อมูลให้ล้าง', 'info');
+                Alert.fire('ไม่มีข้อมูล', 'ไม่มีข้อมูลให้ล้าง', 'info');
                 return;
             }
             
-            Swal.fire({
+            Alert.fire({
                 title: 'ยืนยันการล้างข้อมูล',
                 text: `คุณแน่ใจหรือไม่ที่จะล้างข้อมูลทั้งหมด ${surveyPoints.length} จุดในโครงการนี้?`,
                 icon: 'warning',
@@ -1430,12 +1461,11 @@
             }).then((result) => {
                 if (result.isConfirmed) {
                     resetSurveyData();
-                    Swal.fire({
+                    Alert.fire({
                         title: 'ล้างข้อมูลแล้ว!',
                         text: 'ข้อมูลโครงการถูกล้างเรียบร้อยแล้ว',
                         icon: 'success',
-                        heightAuto: false,
-                        showConfirmButton: false,
+                        showConfirmButton: true,
                         allowOutsideClick: false,
                         allowEscapeKey: false
                     });
@@ -1444,7 +1474,7 @@
         }
         
         function confirmClearData() {
-            Swal.fire({
+            Alert.fire({
                 title: 'ยืนยันการล้างข้อมูล',
                 text: 'คุณแน่ใจหรือไม่ที่จะล้างข้อมูลทั้งหมดในโครงการนี้?',
                 icon: 'warning',
@@ -1457,12 +1487,11 @@
             }).then((result) => {
                 if (result.isConfirmed) {
                     resetSurveyData();
-                    Swal.fire({
+                    Alert.fire({
                         title: 'ล้างข้อมูลแล้ว!',
                         text: 'ข้อมูลโครงการถูกล้างเรียบร้อยแล้ว',
                         icon: 'success',
-                        heightAuto: false,
-                        showConfirmButton: false,
+                        showConfirmButton: true,
                         allowOutsideClick: false,
                         allowEscapeKey: false
                     });
@@ -1590,9 +1619,26 @@
             document.getElementById('totalPoints').textContent = surveyPoints.length;
         }
 
-
-
-        async function uploadFile(file) {
+        
+// === Helpers: normalize Google Drive URL to a direct-view link ===
+function extractDriveId(url='') {
+  const patterns = [
+    /\/file\/d\/([a-zA-Z0-9_-]+)/,
+    /[?&]id=([a-zA-Z0-9_-]+)/,
+    /\/d\/([a-zA-Z0-9_-]+)\//,
+    /\/d\/([a-zA-Z0-9_-]+)$/
+  ];
+  for (const re of patterns) {
+    const m = url && url.match(re);
+    if (m && m[1]) return m[1];
+  }
+  return '';
+}
+function normalizeDriveUrl(url='') {
+  const id = extractDriveId(url);
+  return id ? `https://lh3.googleusercontent.com/d/${id}` : url;
+}
+async function uploadFile(file) {
             if (!file) return '';
             
             try {
@@ -1620,10 +1666,10 @@
                 console.log('Upload result:', result);
                 
                 if (result.success) {
-  console.log('File uploaded successfully:', result.url);
-  const directUrl = normalizeDriveUrl(result.url);
-  return directUrl;
-} else {
+                    console.log('File uploaded successfully:', result.url);
+                    const __direct = normalizeDriveUrl(result.url);
+                    return __direct;
+                } else {
                     console.error('Upload failed:', result.error);
                     return '';
                 }
@@ -1632,28 +1678,6 @@
                 return '';
             }
         }
-
-function extractDriveId(url='') {
-  // รองรับหลายรูปแบบ: /file/d/ID, uc?id=ID, open?id=ID, thumbnail?id=ID, d/ID/view
-  const patterns = [
-    /\/file\/d\/([a-zA-Z0-9_-]+)/,
-    /[?&]id=([a-zA-Z0-9_-]+)/,
-    /\/d\/([a-zA-Z0-9_-]+)\//,
-    /\/d\/([a-zA-Z0-9_-]+)$/
-  ];
-  for (const re of patterns) {
-    const m = url.match(re);
-    if (m && m[1]) return m[1];
-  }
-  return '';
-}
-
-function normalizeDriveUrl(url='') {
-  const id = extractDriveId(url);
-  // ถ้าได้ id: แปลงเป็นลิงก์ดูไฟล์ตรงตามที่ต้องการ (เปิดได้ชัวร์)
-  return id ? `https://lh3.googleusercontent.com/d/${id}` : url;
-}
-
 
         function fileToBase64(file) {
             return new Promise((resolve, reject) => {
@@ -1770,7 +1794,7 @@ function normalizeDriveUrl(url='') {
                     localStorage.setItem('surveyData', JSON.stringify(existingData));
                     
                     // แจ้งเตือนผู้ใช้
-                    Swal.fire({
+                    Alert.fire({
                         title: '💾 บันทึกในเครื่องแล้ว',
                         html: `
                             <p>ไม่สามารถเชื่อมต่อ Google Sheets ได้</p>
@@ -1859,11 +1883,11 @@ function normalizeDriveUrl(url='') {
 
         async function saveAllData() {
             if (surveyPoints.length === 0) {
-                Swal.fire('ไม่มีข้อมูล', 'กรุณาเพิ่มจุดสำรวจก่อนบันทึก', 'warning');
+                Alert.fire('ไม่มีข้อมูล', 'กรุณาเพิ่มจุดสำรวจก่อนบันทึก', 'warning');
                 return;
             }
             
-            Swal.fire({
+            Alert.fire({
                 title: 'กำลังบันทึกข้อมูล...',
                 allowOutsideClick: false,
                 didOpen: () => {
@@ -1874,19 +1898,18 @@ function normalizeDriveUrl(url='') {
             try {
                 await saveAllDataToSheets();
                 
-                Swal.fire({
+                Alert.fire({
                     title: 'บันทึกสำเร็จ!',
                     text: `บันทึกข้อมูล ${surveyPoints.length} จุดเรียบร้อยแล้ว`,
                     icon: 'success',
-                    heightAuto: false,
-                    showConfirmButton: false
+                    showConfirmButton: true
                 });
                 
                 resetSurveyData();
                 
             } catch (error) {
                 console.error('Error saving data:', error);
-                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้: ' + error.message, 'error');
+                Alert.fire('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้: ' + error.message, 'error');
             }
         }
 
@@ -1971,7 +1994,7 @@ function normalizeDriveUrl(url='') {
 
         async function loadDashboardData() {
             try {
-                Swal.fire({
+                Alert.fire({
                     title: 'กำลังโหลดข้อมูล...',
                     allowOutsideClick: false,
                     didOpen: () => {
@@ -2046,7 +2069,7 @@ function normalizeDriveUrl(url='') {
                 if (data && data.length > 0 && !data.some(row => row[11] === 'เขียนผังแล้ว')) {
                     const localDataCount = JSON.parse(localStorage.getItem('surveyData') || '[]').length;
                     if (localDataCount > 0) {
-                        Swal.fire({
+                        Alert.fire({
                             title: '📱 ข้อมูลจากเครื่อง',
                             html: `
                                 <p>แสดงข้อมูลที่บันทึกในเครื่อง</p>
@@ -2058,9 +2081,7 @@ function normalizeDriveUrl(url='') {
                                 </div>
                             `,
                             icon: 'info',
-                            confirmButtonText: 'ตกลง',
-                            heightAuto: false
-                        });
+                            confirmButtonText: 'ตกลง',});
                     }
                 }
                 
@@ -2091,7 +2112,7 @@ function normalizeDriveUrl(url='') {
                         filteredProjectData = [...allProjectData];
                         updateDashboardDisplay(allProjectData);
                         
-                        Swal.fire({
+                        Alert.fire({
                             title: 'โหลดข้อมูลสำรอง',
                             text: 'แสดงข้อมูลที่บันทึกในเครื่อง',
                             icon: 'info',
@@ -2420,14 +2441,11 @@ function normalizeDriveUrl(url='') {
                         ` : '-'}
                     </td>
                     <td class="px-6 py-4 text-sm">
- 			 ${summary.documentUrl ? `
-      				<a href="javascript:void(0)" 
-         			onclick="showDocumentPreview('${encodeURIComponent(summary.documentUrl)}')" 
-        			 onmouseover="showHoverDocument(event, '${encodeURIComponent(summary.documentUrl)}')" 
-        			 onmouseout="hideHoverDocument()" 
-        			 class="text-blue-600 hover:underline">📄 ดูเอกสาร</a>
- 				 ` : '-'}
-			</td>
+                        ${summary.documentUrl ? `
+                            <a href="${summary.documentUrl}" target="_blank" rel="noopener noreferrer" 
+                               class="text-blue-600 hover:underline">📄 ดูเอกสาร</a>
+                        ` : '-'}
+                    </td>
                     <td class="px-6 py-4 text-sm">
                         <select class="text-sm p-2 border rounded-lg" onchange="updateProjectStatus('${projectName}', this.value)">
                             <option value="ยังไม่เขียนผัง" ${summary.status === 'ยังไม่เขียนผัง' ? 'selected' : ''}>ยังไม่เขียนผัง</option>
@@ -2446,22 +2464,6 @@ function normalizeDriveUrl(url='') {
             
             renderPagination(totalPages);
         }
-function showDocumentPreview(encodedUrl) {
-    const url = decodeURIComponent(encodedUrl);
-    // ถ้าเป็น PDF ให้เปิดใน modal หรือ iframe
-    const modal = document.createElement('div');
-    modal.innerHTML = `
-        <div class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg shadow-lg p-4 w-11/12 md:w-3/4 h-5/6 relative">
-                <button onclick="this.closest('div').parentElement.remove()" 
-                        class="absolute top-2 right-2 text-gray-600 hover:text-black">✖</button>
-                <iframe src="${url}" class="w-full h-full rounded"></iframe>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(modal);
-}
-
         
         function renderPagination(totalPages) {
             const paginationContainer = document.getElementById('paginationContainer');
@@ -2676,7 +2678,7 @@ function showDocumentPreview(encodedUrl) {
                 
             } catch (error) {
                 console.error('Error in showImagePreview:', error);
-                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถแสดงภาพได้', 'error');
+                Alert.fire('เกิดข้อผิดพลาด', 'ไม่สามารถแสดงภาพได้', 'error');
             }
         }
         
@@ -2926,18 +2928,17 @@ function showDocumentPreview(encodedUrl) {
                     'อัปเดตสถานะโครงการเรียบร้อยแล้ว' : 
                     'อัปเดตสถานะในเครื่องเรียบร้อยแล้ว (ยังไม่ได้ซิงค์กับ Google Sheets)';
                 
-                Swal.fire({
+                Alert.fire({
                     title: 'อัปเดตสำเร็จ!',
                     text: message,
                     icon: 'success',
-                    heightAuto: false,
-                    showConfirmButton: false
+                    showConfirmButton: true
                 });
                 
             } catch (error) {
                 console.error('Error updating status:', error);
                 hideLoadingOverlay();
-                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถอัปเดตสถานะได้: ' + error.message, 'error');
+                Alert.fire('เกิดข้อผิดพลาด', 'ไม่สามารถอัปเดตสถานะได้: ' + error.message, 'error');
             }
         }
 
@@ -2946,11 +2947,11 @@ function showDocumentPreview(encodedUrl) {
                 const localData = JSON.parse(localStorage.getItem('surveyData') || '[]');
                 
                 if (localData.length === 0) {
-                    Swal.fire('ไม่มีข้อมูล', 'ไม่มีข้อมูลในเครื่องให้ส่งออก', 'info');
+                    Alert.fire('ไม่มีข้อมูล', 'ไม่มีข้อมูลในเครื่องให้ส่งออก', 'info');
                     return;
                 }
                 
-                const result = await Swal.fire({
+                const result = await Alert.fire({
                     title: 'ส่งออกข้อมูล',
                     html: `
                         <p>พบข้อมูล ${localData.length} โครงการในเครื่อง</p>
@@ -2976,7 +2977,7 @@ function showDocumentPreview(encodedUrl) {
                 
             } catch (error) {
                 console.error('Error exporting data:', error);
-                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถส่งออกข้อมูลได้', 'error');
+                Alert.fire('เกิดข้อผิดพลาด', 'ไม่สามารถส่งออกข้อมูลได้', 'error');
             }
         }
         
@@ -2992,12 +2993,11 @@ function showDocumentPreview(encodedUrl) {
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
             
-            Swal.fire({
+            Alert.fire({
                 title: 'ส่งออกสำเร็จ!',
                 text: 'ไฟล์ JSON ถูกดาวน์โหลดเรียบร้อยแล้ว',
                 icon: 'success',
-                heightAuto: false,
-                showConfirmButton: false
+                showConfirmButton: true
             });
         }
         
@@ -3036,12 +3036,11 @@ function showDocumentPreview(encodedUrl) {
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
             
-            Swal.fire({
+            Alert.fire({
                 title: 'ส่งออกสำเร็จ!',
                 text: 'ไฟล์ CSV ถูกดาวน์โหลดเรียบร้อยแล้ว',
                 icon: 'success',
-                heightAuto: false,
-                showConfirmButton: false
+                showConfirmButton: true
             });
         }
 
@@ -3067,12 +3066,11 @@ function showDocumentPreview(encodedUrl) {
                         
                         hideLoadingOverlay();
                         
-                        Swal.fire({
+                        Alert.fire({
                             title: 'ดาวน์โหลดสำเร็จ!',
                             text: 'ไฟล์ KML ถูกดาวน์โหลดเรียบร้อยแล้ว',
                             icon: 'success',
-                            heightAuto: false,
-                            showConfirmButton: false
+                            showConfirmButton: true
                         });
                         return;
                     }
@@ -3102,18 +3100,17 @@ function showDocumentPreview(encodedUrl) {
                 
                 hideLoadingOverlay();
                 
-                Swal.fire({
+                Alert.fire({
                     title: 'ดาวน์โหลดสำเร็จ!',
                     text: 'ไฟล์ KML ถูกสร้างเรียบร้อยแล้ว',
                     icon: 'success',
-                    heightAuto: false,
-                    showConfirmButton: false
+                    showConfirmButton: true
                 });
                 
             } catch (error) {
                 console.error('Error downloading KML:', error);
                 hideLoadingOverlay();
-                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถดาวน์โหลดไฟล์ KML ได้: ' + error.message, 'error');
+                Alert.fire('เกิดข้อผิดพลาด', 'ไม่สามารถดาวน์โหลดไฟล์ KML ได้: ' + error.message, 'error');
             }
         }
         
