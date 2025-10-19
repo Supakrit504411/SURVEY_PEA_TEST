@@ -3628,40 +3628,38 @@ p.__followControlAttached = true;
 })();
 </script>
 
+
 <script id="mobile-fixes-js">
-// === Mobile Map Professional Fixes (auto-injected) ===
+// === Mobile Map Professional Fixes v2 (strict follow & live measure) ===
 (function(){
   function attach(){
     if (!window.L || !window.map || typeof map.on !== 'function') return false;
+
+    // 0) Ensure dragging enabled
+    try { if (map.dragging && map.dragging.enable) map.dragging.enable(); } catch(e){}
 
     // 1) Strict follow mode OFF by default
     if (!window.__followUser) {
       let _f = false;
       window.__followUser = { get: () => _f, set: v => { _f = !!v; } };
     } else {
-      // force off at boot to honor user's manual pan
       try { window.__followUser.set(false); } catch(e){}
     }
 
-    // Intercept programmatic centering to respect follow flag,
-    // but allow a single forced center when requested.
-    ['setView','panTo','flyTo'].forEach(fn => {
+    // 2) Intercept ALL common centering methods; honor follow OR explicit whitelist
+    ['setView','panTo','flyTo','fitBounds','flyToBounds'].forEach(fn => {
       if (typeof map[fn] === 'function' && !map['__wrapped_'+fn]) {
         const orig = map[fn].bind(map);
         map[fn] = function(){
-          // Allow next center if explicitly whitelisted
+          // Allow one-shot through (set by 📍 button)
           if (this.__forceNextCenter === true) {
             this.__forceNextCenter = false;
             return orig.apply(this, arguments);
           }
-          // If the call looks like GPS/programmatic centering (array [lat,lng])
+          // Block programmatic centering if not following
           try {
-            const a0 = arguments[0];
-            if (Array.isArray(a0) && typeof a0[0] === 'number' && typeof a0[1] === 'number') {
-              if (!window.__followUser.get()) {
-                // Ignore when follow is OFF
-                return this;
-              }
+            if (!window.__followUser.get()) {
+              return this;
             }
           } catch(e){}
           return orig.apply(this, arguments);
@@ -3670,24 +3668,25 @@ p.__followControlAttached = true;
       }
     });
 
-    // Helper that GPS code can use safely (or we will call internally)
+    // Helper for GPS code (use this instead of calling setView directly)
     window.__gpsCenterGuard = function(lat,lng,zoom){
       if (window.__followUser.get()) {
         map.setView([lat,lng], zoom != null ? zoom : map.getZoom());
       }
     };
 
-    // 2) Hook current location button(s) to enable follow and force a single center
+    // 3) Hook current location buttons: enable follow & allow one-shot center
     function hookCurrentButtons(){
-      const buttons = Array.from(document.querySelectorAll('button, a'));
+      const buttons = Array.from(document.querySelectorAll('button, a, .leaflet-control a'));
       buttons.forEach(el => {
         if (el.__hookedCurrent) return;
         const text = (el.textContent || '').trim();
+        // Match by text/icon; add more selectors if your button has a specific id/class
         if (text.includes('ตำแหน่งปัจจุบัน') || text.includes('📍')) {
           el.__hookedCurrent = true;
           el.addEventListener('click', function(){
             try { window.__followUser.set(true); } catch(e){}
-            if (map) map.__forceNextCenter = true; // allow this click to center
+            if (map) map.__forceNextCenter = true;
           }, { capture:true });
         }
       });
@@ -3696,32 +3695,29 @@ p.__followControlAttached = true;
     const obs = new MutationObserver(hookCurrentButtons);
     obs.observe(document.documentElement, { childList:true, subtree:true });
 
-    // 3) User manual interaction should turn follow OFF immediately
+    // 4) Any manual interaction turns follow OFF immediately
     const stopFollow = () => { try { window.__followUser.set(false); } catch(e){} };
     map.on('dragstart zoomstart touchstart movestart', stopFollow);
 
-    // 4) Tap-to-pin anywhere on the map
+    // 5) Tap-to-pin anywhere
     if (!window.__tapToPinAttached) {
       let seq = 1;
       const nextNo = () => (typeof window.getNextPointNumber === 'function' ? window.getNextPointNumber() : seq++);
-
       map.on('click', function(e){
         const { lat, lng } = e.latlng;
-        // Prefer your app's native functions if present
         if (typeof window.addPointAtLatLng === 'function') {
           try { window.addPointAtLatLng(lat, lng, nextNo()); return; } catch(err){ console.warn(err); }
         }
         if (typeof window.confirmAddPointAtLocation === 'function') {
           try { window.confirmAddPointAtLocation(lat, lng); return; } catch(err){ console.warn(err); }
         }
-        // Fallback marker
         const n = nextNo();
         L.marker([lat,lng]).addTo(map).bindPopup('จุดที่ ' + n).openPopup();
       });
       window.__tapToPinAttached = true;
     }
 
-    // 5) Real-time dashed line + distance while panning (center-to-center)
+    // 6) Live dashed line + distance while panning
     if (!map.__dragMeasureAttached) {
       let startCenter = null;
       let line = null;
@@ -3735,8 +3731,8 @@ p.__followControlAttached = true;
         line = L.polyline([startCenter, startCenter], {
           color: '#1976D2',
           weight: 3,
-          opacity: 0.9,
-          dashArray: '8,8'
+          opacity: 0.95,
+          dashArray: '10,8'
         }).addTo(map);
         label = L.tooltip({
           permanent: true,
@@ -3752,7 +3748,6 @@ p.__followControlAttached = true;
         const d = map.distance(startCenter, cur);
         const mid = L.latLng((startCenter.lat + cur.lat)/2, (startCenter.lng + cur.lng)/2);
         if (label) label.setLatLng(mid).setContent(fmt(d));
-        // Optional: update small info panel if exists
         try { const el = document.getElementById('lastDistance'); if (el) el.textContent = fmt(d); } catch(e){}
       });
 
@@ -3772,8 +3767,9 @@ p.__followControlAttached = true;
   }
 
   let tries = 0;
-  (function wait(){ if (!attach() && tries++ < 80) setTimeout(wait, 250); })();
+  (function wait(){ if (!attach() && tries++ < 100) setTimeout(wait, 250); })();
 })();
 </script>
+
 </body>
 </html>
