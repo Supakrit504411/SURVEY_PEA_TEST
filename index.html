@@ -348,6 +348,12 @@ body.swal2-shown .map-overlay {
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 </style>
+
+<style id="mobile-final-css">
+.map-overlay { pointer-events: none; }
+.map-overlay * { pointer-events: auto; }
+#map, .leaflet-container { touch-action: manipulation; }
+</style>
 </head>
  <body class="bg-gradient-to-br from-blue-50 to-indigo-100 font-sans">
   <div class="main-container"><!-- Navigation Bar -->
@@ -943,10 +949,7 @@ function initializeMap() {
                         }
                     });
                     
-                    map.whenReady(() => {
-                        console.log('Map ready');
-                        getCurrentLocation();
-                    });
+                    map.whenReady(() => { console.log('Map ready'); /* no auto-locate */ });
                     
                     console.log('Map initialized successfully');
                 } catch (error) {
@@ -1115,9 +1118,7 @@ function showNewProjectModal() {
             });
         }
 
-        function getCurrentLocation() {  if (window.__followUser && typeof window.__followUser.set==='function') window.__followUser.set(true);
-
-  if (!navigator.geolocation) {
+        function getCurrentLocation() { if (!navigator.geolocation) {
     return Alert.fire({
       title: 'ไม่รองรับ GPS',
       text: 'เบราว์เซอร์นี้ไม่รองรับการหาตำแหน่ง',
@@ -3771,5 +3772,102 @@ p.__followControlAttached = true;
 })();
 </script>
 
+
+<script id="mobile-final-follow-measure">
+(function(){
+  function attach(){
+    if (!window.L || !window.map || typeof map.on !== 'function') return false;
+
+    // 0) Make sure dragging is enabled
+    try { if (map.dragging && map.dragging.enable) map.dragging.enable(); } catch(e){}
+
+    // 1) Follow mode controller: OFF by default
+    if (!window.__followUser) {
+      let _f = false;
+      window.__followUser = { get: () => _f, set: v => { _f = !!v; } };
+    } else { try { window.__followUser.set(false); } catch(e){} }
+
+    // 2) Wrap all common centering methods; allow only when follow=true, except one-shot override
+    ['setView','panTo','flyTo','fitBounds','flyToBounds'].forEach(fn => {
+      if (typeof map[fn] === 'function' && !map['__wrapped_'+fn]) {
+        const orig = map[fn].bind(map);
+        map[fn] = function(){
+          if (this.__forceNextCenter === true) { this.__forceNextCenter = false; return orig.apply(this, arguments); }
+          if (!window.__followUser.get()) { return this; }
+          return orig.apply(this, arguments);
+        };
+        map['__wrapped_'+fn] = true;
+      }
+    });
+
+    // Helper for any GPS callback to call safely
+    window.__gpsCenterGuard = function(lat,lng,zoom){
+      if (window.__followUser.get()) { map.setView([lat,lng], zoom != null ? zoom : map.getZoom()); }
+    };
+
+    // 3) Hook the "ตำแหน่งปัจจุบัน" button to enable follow & allow next center
+    (function hookLocateBtn(){
+      const hook = () => {
+        const btn = document.getElementById('currentLocationBtn');
+        if (!btn || btn.__hookedFollow) return;
+        btn.__hookedFollow = true;
+        btn.addEventListener('click', function(){
+          try { window.__followUser.set(true); } catch(e){}
+          if (map) map.__forceNextCenter = true; // allow center from this action
+          // Ensure we start/refresh GPS watch
+          try { if (typeof getCurrentLocation === 'function') getCurrentLocation(); } catch(e){}
+        }, { capture:true });
+      };
+      hook();
+      const mo = new MutationObserver(hook);
+      mo.observe(document.documentElement, { childList:true, subtree:true });
+    })();
+
+    // 4) Any manual user interaction turns follow OFF immediately
+    const stopFollow = () => { try { window.__followUser.set(false); } catch(e){} };
+    map.on('dragstart zoomstart touchstart movestart', stopFollow);
+
+    // 5) Tap-to-pin should already exist (map.on('click', ...)) in your file; no change here.
+
+    // 6) Live dashed line + distance while panning (center-to-center)
+    if (!map.__dragMeasureAttached) {
+      let startCenter = null, line = null, label = null;
+      const fmt = (m) => m >= 1000 ? (m/1000).toFixed(2)+' กม.' : Math.round(m)+' ม.';
+
+      map.on('movestart', function(){
+        startCenter = map.getCenter();
+        if (line) { map.removeLayer(line); line = null; }
+        if (label){ map.removeLayer(label); label = null; }
+        line = L.polyline([startCenter, startCenter], {
+          color: '#1976D2', weight: 3, opacity: 0.95, dashArray: '10,8'
+        }).addTo(map);
+        label = L.tooltip({ permanent: true, direction: 'center', className: 'measure-label' })
+                  .setLatLng(startCenter).setContent('0 ม.').addTo(map);
+      });
+
+      map.on('move', function(){
+        if (!startCenter || !line) return;
+        const cur = map.getCenter();
+        line.setLatLngs([startCenter, cur]);
+        const d = map.distance(startCenter, cur);
+        const mid = L.latLng((startCenter.lat+cur.lat)/2, (startCenter.lng+cur.lng)/2);
+        if (label) label.setLatLng(mid).setContent(fmt(d));
+        try { const el = document.getElementById('lastDistance'); if (el) el.textContent = fmt(d); } catch(e){}
+      });
+
+      const cleanup = () => { if (line){ map.removeLayer(line); line=null; } if (label){ map.removeLayer(label); label=null; } startCenter=null; };
+      map.on('moveend', cleanup);
+      map.on('zoomstart', cleanup);
+      document.addEventListener('visibilitychange', ()=>{ if (document.hidden) cleanup(); });
+
+      map.__dragMeasureAttached = true;
+    }
+
+    return true;
+  }
+  let tries = 0;
+  (function wait(){ if (!attach() && tries++ < 100) setTimeout(wait, 250); })();
+})();
+</script>
 </body>
 </html>
