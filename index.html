@@ -1133,7 +1133,7 @@ function showNewProjectModal() {
           updateCurrentLocationMarker(lat, lng);
         }
         if (typeof map !== 'undefined' && map && (!window.currentLocationMarker || !map.getBounds().contains([lat,lng]))) {
-          if (!window.__followUser || window.__followUser.get()) { if ((!window.__userInteracting) && (!window.__followUser || window.__followUser.get())) { map.setView([lat, lng], 16); } }
+          if (!window.__followUser || window.__followUser.get()) { if ((!window.__userInteracting) && (!window.__followUser || window.__followUser.get())) { if ((!window.__antiRecenter || !window.__antiRecenter.isBlocked()) && (!window.__followUser || window.__followUser.get())) { if ((!window.__antiRecenter || !window.__antiRecenter.isBlocked()) && (!window.__followUser || window.__followUser.get())) { map.setView([lat, lng], 16) } }; } }
         }
       } catch (e) { console.warn(e); }
 
@@ -3501,7 +3501,72 @@ async function uploadFile(file) {
       set: (v) => { followUser = !!v; updateBtn(document.querySelector('.follow-control')); }
     };
 
-    map.__followControlAttached = true;
+    ma
+<script>
+// === Drag-to-measure: show dashed line from drag start center to current center (auto-injected) ===
+(function(){
+  function attach(){
+    if (!window.map || !window.L || !map.on) return false;
+    if (map.__dragMeasureAttached) return true;
+    let startCenter = null;
+    let line = null;
+    let label = null;
+
+    function fmt(m){ return m >= 1000 ? (m/1000).toFixed(2)+' กม.' : Math.round(m)+' ม.'; }
+
+    map.on('dragstart', function(){
+      startCenter = map.getCenter();
+      // create line & label
+      line = L.polyline([startCenter, startCenter], {
+        color: '#1976D2',
+        weight: 3,
+        opacity: 0.9,
+        dashArray: '8,8'
+      }).addTo(map);
+      label = L.tooltip({ permanent: true, direction: 'center', className: 'measure-label' })
+        .setLatLng(startCenter)
+        .setContent('0 ม.')
+        .addTo(map);
+    });
+
+    map.on('move', function(){
+      if (!startCenter || !line) return;
+      const cur = map.getCenter();
+      line.setLatLngs([startCenter, cur]);
+      const d = map.distance(startCenter, cur);
+      const mid = L.latLng((startCenter.lat+cur.lat)/2, (startCenter.lng+cur.lng)/2);
+      if (label) label.setLatLng(mid).setContent(fmt(d));
+    });
+
+    function cleanup(){
+      if (line){ map.removeLayer(line); line = null; }
+      if (label){ map.removeLayer(label); label = null; }
+      startCenter = null;
+    }
+    map.on('dragend', cleanup);
+    map.on('zoomstart', cleanup);
+    document.addEventListener('visibilitychange', ()=>{ if (document.hidden) cleanup(); });
+
+    map.__dragMeasureAttached = true;
+    return true;
+  }
+  let tries=0;
+  (function wait(){ if (!attach() && tries++ < 60) setTimeout(wait, 300); })();
+})();
+</script>
+<style>
+/* Ensure tooltip is readable on map */
+.leaflet-tooltip.measure-label{
+  background: rgba(0,0,0,0.8);
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+</style>
+p.__followControlAttached = true;
     return true;
   }
 
@@ -3515,5 +3580,36 @@ async function uploadFile(file) {
 <style>
 .follow-control.follow-off{ opacity: .85; }
 </style>
+
+<script>
+// === Anti-recenter on user interaction (auto-injected) ===
+(function(){
+  let blockUntil = 0;
+  function setBlock(ms){ blockUntil = Date.now() + ms; }
+  function isBlocked(){ return Date.now() < blockUntil; }
+
+  function attach(){
+    if (!window.map || !window.L || !map.on) return false;
+    const stopFollow = () => {
+      if (window.__followUser && typeof window.__followUser.set === 'function') {
+        window.__followUser.set(false);
+      }
+      setBlock(8000); // block auto-centering for 8s after manual pan/zoom
+      window.__userInteracting = true;
+    };
+    const endInteract = () => { window.__userInteracting = false; };
+
+    map.on('dragstart zoomstart touchstart movestart', stopFollow);
+    map.on('dragend zoomend touchend moveend', endInteract);
+
+    // Expose guard for GPS callbacks
+    window.__antiRecenter = { isBlocked };
+
+    return true;
+  }
+  let tries = 0;
+  (function wait(){ if (!attach() && tries++ < 60) setTimeout(wait, 300); })();
+})();
+</script>
 </body>
 </html>
