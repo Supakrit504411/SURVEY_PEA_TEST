@@ -292,7 +292,23 @@
             border: 2px solid white;
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
-    </style>
+    
+/* --- MOBILE STABILITY FOR SWEETALERT2 (auto-injected) --- */
+body.swal2-shown #map,
+body.swal2-shown .leaflet-container,
+body.swal2-shown .map-overlay {
+  pointer-events: none !important;
+}
+.swal2-container {
+  position: fixed !important;
+  overscroll-behavior: contain;
+  z-index: 30000 !important;
+}
+.swal2-popup {
+  touch-action: manipulation;
+}
+
+</style>
   <style>@view-transition { navigation: auto; }</style>
   <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
   <script src="/_sdk/element_sdk.js" type="text/javascript"></script>
@@ -498,12 +514,21 @@
         // เริ่มต้นแอป
         
 // SweetAlert2 defaults for mobile stability
+// SweetAlert2 defaults for mobile stability (auto-injected)
 const Alert = Swal.mixin({
+  backdrop: true,
   allowOutsideClick: false,
   allowEscapeKey: false,
+  stopKeydownPropagation: true,
   heightAuto: false,
+  scrollbarPadding: false,
+  focusConfirm: true,
   showConfirmButton: true,
-  confirmButtonText: 'ตกลง'
+  confirmButtonText: 'ตกลง',
+  didOpen: (popup) => {
+    const btn = popup.querySelector('.swal2-confirm');
+    if (btn) btn.focus();
+  }
 });
 document.addEventListener('DOMContentLoaded', function() {
             initializeApp();
@@ -1634,50 +1659,58 @@ function extractDriveId(url='') {
   }
   return '';
 }
-function normalizeDriveUrl(url='') {
-  const id = extractDriveId(url);
+function normalizeDriveUrl(url = '') {
+  // ถ้าเป็นลิงก์ viewer ของ Drive อยู่แล้ว (เช่น PDF) ให้คงไว้
+  if (url.includes('drive.google.com/file/d/')) return url;
+
+  // กรณีอื่น (รูปภาพที่เป็น uc?id= หรือ d/ID) -> แปลงเป็น lh3 ตามเดิม
+  const idMatch =
+    url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
+    url.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
+    url.match(/\/d\/([a-zA-Z0-9_-]+)\//) ||
+    url.match(/\/d\/([a-zA-Z0-9_-]+)$/);
+  const id = idMatch ? idMatch[1] : '';
   return id ? `https://lh3.googleusercontent.com/d/${id}` : url;
 }
 async function uploadFile(file) {
-            if (!file) return '';
-            
-            try {
-                console.log('Uploading file:', file.name, 'Size:', file.size);
-                
-                const base64 = await fileToBase64(file);
-                console.log('File converted to base64, length:', base64.length);
-                
-                const params = new URLSearchParams();
-                params.append('action', 'uploadFile');
-                params.append('fileName', file.name);
-                params.append('fileData', base64);
-                params.append('folderId', FOLDER_ID);
-                params.append('surveyor', currentSurveyor);
-                
-                const response = await fetch(SCRIPT_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: params.toString()
-                });
-                
-                const result = await response.json();
-                console.log('Upload result:', result);
-                
-                if (result.success) {
-                    console.log('File uploaded successfully:', result.url);
-                    const __direct = normalizeDriveUrl(result.url);
-                    return __direct;
-                } else {
-                    console.error('Upload failed:', result.error);
-                    return '';
-                }
-            } catch (error) {
-                console.error('Error uploading file:', error);
-                return '';
-            }
-        }
+  if (!file) return '';
+
+  try {
+    console.log('Uploading file:', file.name, 'Size:', file.size);
+
+    const base64 = await fileToBase64(file);
+
+    const params = new URLSearchParams();
+    params.append('action', 'uploadFile');
+    params.append('fileName', file.name);
+    params.append('mimeType', file.type || '');     // << ส่งชนิดไฟล์จริง
+    params.append('fileData', base64);
+    params.append('folderId', FOLDER_ID);
+    params.append('surveyor', currentSurveyor);
+
+    const response = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString()
+    });
+
+    const result = await response.json();
+    console.log('Upload result:', result);
+
+    if (result.success) {
+      // ใช้ URL ที่ GAS คืนมาโดยตรง:
+      // - PDF  => https://drive.google.com/file/d/<ID>/view?... (เปิดหลายหน้า)
+      // - รูป  => https://lh3.googleusercontent.com/d/<ID>
+      return result.url;
+    } else {
+      console.error('Upload failed:', result.error);
+      return '';
+    }
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    return '';
+  }
+}
 
         function fileToBase64(file) {
             return new Promise((resolve, reject) => {
