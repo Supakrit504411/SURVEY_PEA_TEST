@@ -332,6 +332,13 @@ body.swal2-shown .map-overlay {
   font-size: 16px;
 }
 </style>
+
+<style>
+/* --- Mobile tap-through for overlays (auto-injected) --- */
+.map-overlay { pointer-events: none; }
+.map-overlay * { pointer-events: auto; } /* keep buttons/links usable */
+#map, .leaflet-container { touch-action: manipulation; }
+</style>
 </head>
  <body class="bg-gradient-to-br from-blue-50 to-indigo-100 font-sans">
   <div class="main-container"><!-- Navigation Bar -->
@@ -1133,7 +1140,7 @@ function showNewProjectModal() {
           updateCurrentLocationMarker(lat, lng);
         }
         if (typeof map !== 'undefined' && map && (!window.currentLocationMarker || !map.getBounds().contains([lat,lng]))) {
-          if (!window.__followUser || window.__followUser.get()) { if ((!window.__userInteracting) && (!window.__followUser || window.__followUser.get())) { if ((!window.__antiRecenter || !window.__antiRecenter.isBlocked()) && (!window.__followUser || window.__followUser.get())) { if ((!window.__antiRecenter || !window.__antiRecenter.isBlocked()) && (!window.__followUser || window.__followUser.get())) { map.setView([lat, lng], 16) } }; } }
+          if (!window.__followUser || window.__followUser.get()) { if ((!window.__userInteracting) && (!window.__followUser || window.__followUser.get())) { if ((!window.__antiRecenter || !window.__antiRecenter.isBlocked()) && (!window.__followUser || window.__followUser.get())) { if ((!window.__antiRecenter || !window.__antiRecenter.isBlocked()) && (!window.__followUser || window.__followUser.get())) { if (window.__allowCentering) map.setView([lat, lng], 16) } }; } }
         }
       } catch (e) { console.warn(e); }
 
@@ -3714,5 +3721,55 @@ p.__followControlAttached = true;
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 </style>
+
+<script>
+// === Robust anti-recenter for mobile (auto-injected) ===
+(function(){
+  function attach(){
+    if (!window.map || !window.L || !map.on) return false;
+
+    // Global flag: allow programmatic centering
+    if (typeof window.__allowCentering === 'undefined') window.__allowCentering = true;
+
+    // Cooldown blocker after user interaction
+    let cooldownUntil = 0;
+    function block(ms){ cooldownUntil = Date.now() + ms; window.__allowCentering = false; }
+    function unBlock(){ if (Date.now() >= cooldownUntil) window.__allowCentering = true; }
+    function isCooling(){ return Date.now() < cooldownUntil; }
+
+    // Wrap setView/panTo/flyTo to honor allowCentering
+    ['setView','panTo','flyTo'].forEach(fn => {
+      if (typeof map[fn] === 'function' && !map['__wrapped_'+fn]) {
+        const orig = map[fn].bind(map);
+        map[fn] = function(){
+          if (!window.__allowCentering) {
+            // silently ignore programmatic centering during cooldown
+            return this;
+          }
+          return orig.apply(this, arguments);
+        };
+        map['__wrapped_'+fn] = true;
+      }
+    });
+
+    // Mark user interaction -> block for 10s
+    const startInteract = () => { block(10000); };
+    const endInteract   = () => { /* end flag only, cooldown remains */ };
+
+    map.on('dragstart zoomstart touchstart movestart', startInteract);
+    map.on('dragend zoomend touchend moveend', endInteract);
+
+    // Periodically lift cooldown when time elapsed
+    setInterval(unBlock, 1000);
+
+    // Export guard for GPS callbacks (if code checks it)
+    window.__centerGuard = { isCooling, allow: () => window.__allowCentering = true, block };
+
+    return true;
+  }
+  let tries = 0;
+  (function wait(){ if (!attach() && tries++ < 80) setTimeout(wait, 250); })();
+})();
+</script>
 </body>
 </html>
