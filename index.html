@@ -334,10 +334,19 @@ body.swal2-shown .map-overlay {
 </style>
 
 <style>
-/* --- Mobile tap-through for overlays (auto-injected) --- */
+/* --- Mobile map UX enhancements (auto-injected) --- */
 .map-overlay { pointer-events: none; }
-.map-overlay * { pointer-events: auto; } /* keep buttons/links usable */
+.map-overlay * { pointer-events: auto; } /* keep controls interactive */
 #map, .leaflet-container { touch-action: manipulation; }
+.leaflet-tooltip.measure-label{
+  background: rgba(0,0,0,0.85);
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
 </style>
 </head>
  <body class="bg-gradient-to-br from-blue-50 to-indigo-100 font-sans">
@@ -1140,7 +1149,7 @@ function showNewProjectModal() {
           updateCurrentLocationMarker(lat, lng);
         }
         if (typeof map !== 'undefined' && map && (!window.currentLocationMarker || !map.getBounds().contains([lat,lng]))) {
-          if (!window.__followUser || window.__followUser.get()) { if ((!window.__userInteracting) && (!window.__followUser || window.__followUser.get())) { if ((!window.__antiRecenter || !window.__antiRecenter.isBlocked()) && (!window.__followUser || window.__followUser.get())) { if ((!window.__antiRecenter || !window.__antiRecenter.isBlocked()) && (!window.__followUser || window.__followUser.get())) { if (window.__allowCentering) map.setView([lat, lng], 16) } }; } }
+          if (!window.__followUser || window.__followUser.get()) { if ((!window.__userInteracting) && (!window.__followUser || window.__followUser.get())) { if ((!window.__antiRecenter || !window.__antiRecenter.isBlocked()) && (!window.__followUser || window.__followUser.get())) { if ((!window.__antiRecenter || !window.__antiRecenter.isBlocked()) && (!window.__followUser || window.__followUser.get())) { map.setView([lat, lng], 16) } }; } }
         }
       } catch (e) { console.warn(e); }
 
@@ -3620,153 +3629,107 @@ p.__followControlAttached = true;
 </script>
 
 <script>
-// === Anti-recenter on user interaction (auto-injected) ===
-(function(){
-  let blockUntil = 0;
-  function setBlock(ms){ blockUntil = Date.now() + ms; }
-  function isBlocked(){ return Date.now() < blockUntil; }
-
-  function attach(){
-    if (!window.map || !window.L || !map.on) return false;
-
-    // When the user starts to manipulate the map, stop following and block auto-centering for a while
-    const stopFollow = () => {
-      if (window.__followUser && typeof window.__followUser.set === 'function') {
-        window.__followUser.set(false);
-      }
-      setBlock(8000); // block auto-centering for 8s after manual pan/zoom
-      window.__userInteracting = true;
-    };
-    const endInteract = () => { window.__userInteracting = false; };
-
-    map.on('dragstart zoomstart touchstart movestart', stopFollow);
-    map.on('dragend zoomend touchend moveend', endInteract);
-
-    // Expose guard for GPS callbacks
-    window.__antiRecenter = { isBlocked };
-
-    return true;
-  }
-  let tries = 0;
-  (function wait(){ if (!attach() && tries++ < 60) setTimeout(wait, 300); })();
-})();
-</script>
-
-<script>
-// === Drag-to-measure: dashed line + distance from drag start center to current center (auto-injected) ===
+// === Strict Follow Mode + Tap-to-Pin (auto-injected) ===
 (function(){
   function attach(){
     if (!window.map || !window.L || !map.on) return false;
-    if (map.__dragMeasureAttached) return true;
-    let startCenter = null;
-    let line = null;
-    let label = null;
 
-    function fmt(m){ return m >= 1000 ? (m/1000).toFixed(2)+' กม.' : Math.round(m)+' ม.'; }
-
-    map.on('dragstart', function(){
-      startCenter = map.getCenter();
-      // create line & label
-      line = L.polyline([startCenter, startCenter], {
-        color: '#1976D2',
-        weight: 3,
-        opacity: 0.9,
-        dashArray: '8,8'
-      }).addTo(map);
-      label = L.tooltip({ permanent: true, direction: 'center', className: 'measure-label' })
-        .setLatLng(startCenter)
-        .setContent('0 ม.')
-        .addTo(map);
-    });
-
-    map.on('move', function(){
-      if (!startCenter || !line) return;
-      const cur = map.getCenter();
-      line.setLatLngs([startCenter, cur]);
-      const d = map.distance(startCenter, cur);
-      const mid = L.latLng((startCenter.lat+cur.lat)/2, (startCenter.lng+cur.lng)/2);
-      if (label) label.setLatLng(mid).setContent(fmt(d));
-      // also update the small info box if exists
-      try {
-        var last = document.getElementById('lastDistance');
-        if (last) last.textContent = fmt(d);
-      } catch(e){}
-    });
-
-    function cleanup(){
-      if (line){ map.removeLayer(line); line = null; }
-      if (label){ map.removeLayer(label); label = null; }
-      startCenter = null;
+    // --- Strict follow: off by default ---
+    if (!window.__followUser) {
+      let _follow = false; // start as NOT following
+      window.__followUser = { get: () => _follow, set: v => { _follow = !!v; } };
     }
-    map.on('dragend', cleanup);
-    map.on('zoomstart', cleanup);
-    document.addEventListener('visibilitychange', ()=>{ if (document.hidden) cleanup(); });
 
-    map.__dragMeasureAttached = true;
-    return true;
-  }
-  let tries=0;
-  (function wait(){ if (!attach() && tries++ < 60) setTimeout(wait, 300); })();
-})();
-</script>
-<style>
-/* Ensure tooltip readable on map (auto-injected) */
-.leaflet-tooltip.measure-label{
-  background: rgba(0,0,0,0.85);
-  color: #fff;
-  border: 0;
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-}
-</style>
+    // Guard: GPS-driven centering only when follow is ON
+    const gpsCenterGuard = function(lat,lng,zoom){
+      if (window.__followUser && window.__followUser.get()) {
+        map.setView([lat, lng], zoom != null ? zoom : map.getZoom());
+      }
+    };
+    // Expose for any GPS callback to use
+    window.__gpsCenterGuard = gpsCenterGuard;
 
-<script>
-// === Robust anti-recenter for mobile (auto-injected) ===
-(function(){
-  function attach(){
-    if (!window.map || !window.L || !map.on) return false;
-
-    // Global flag: allow programmatic centering
-    if (typeof window.__allowCentering === 'undefined') window.__allowCentering = true;
-
-    // Cooldown blocker after user interaction
-    let cooldownUntil = 0;
-    function block(ms){ cooldownUntil = Date.now() + ms; window.__allowCentering = false; }
-    function unBlock(){ if (Date.now() >= cooldownUntil) window.__allowCentering = true; }
-    function isCooling(){ return Date.now() < cooldownUntil; }
-
-    // Wrap setView/panTo/flyTo to honor allowCentering
+    // Try to patch common GPS setView usages in existing code (best-effort)
+    // (We can't rewrite existing functions here; so we provide a helper above and
+    // also try to intercept at runtime via method wrapping to be safe)
     ['setView','panTo','flyTo'].forEach(fn => {
       if (typeof map[fn] === 'function' && !map['__wrapped_'+fn]) {
         const orig = map[fn].bind(map);
         map[fn] = function(){
-          if (!window.__allowCentering) {
-            // silently ignore programmatic centering during cooldown
-            return this;
-          }
+          // If the call pattern looks like GPS recentering (array of lat,lng numeric) and follow is off -> ignore
+          try {
+            if (Array.isArray(arguments[0]) && typeof arguments[0][0]==='number' && typeof arguments[0][1]==='number') {
+              if (!window.__followUser.get() && this.__guardNextCenter !== true) {
+                // ignore programmatic center changes when not following
+                return this;
+              }
+            }
+          } catch(e){}
+          this.__guardNextCenter = false;
           return orig.apply(this, arguments);
         };
         map['__wrapped_'+fn] = true;
       }
     });
 
-    // Mark user interaction -> block for 10s
-    const startInteract = () => { block(10000); };
-    const endInteract   = () => { /* end flag only, cooldown remains */ };
+    // Hook current location button to explicitly enable follow and recenter once
+    function hookCurrentLocationBtn(){
+      const candidates = Array.from(document.querySelectorAll('button, a'));
+      candidates.forEach(el => {
+        if (el.__hookedFollow) return;
+        const t = (el.textContent || '').trim();
+        if (t.includes('ตำแหน่งปัจจุบัน') || t.includes('📍')) {
+          el.__hookedFollow = true;
+          el.addEventListener('click', function(){
+            if (window.__followUser) window.__followUser.set(true);
+            // allow next programmatic center (from this button handler) even if follow was off
+            if (map) map.__guardNextCenter = true;
+            // Optionally: if you want to recenter immediately with last known coords, you can do it here
+          }, { capture:true });
+        }
+      });
+    }
+    hookCurrentLocationBtn();
+    // In case the menu renders later
+    const obs = new MutationObserver(hookCurrentLocationBtn);
+    obs.observe(document.documentElement, { childList:true, subtree:true });
 
-    map.on('dragstart zoomstart touchstart movestart', startInteract);
-    map.on('dragend zoomend touchend moveend', endInteract);
+    // When the user manipulates the map manually -> turn follow OFF (until user presses current-location again)
+    const stopFollow = () => { if (window.__followUser) window.__followUser.set(false); };
+    map.on('dragstart zoomstart touchstart movestart', stopFollow);
 
-    // Periodically lift cooldown when time elapsed
-    setInterval(unBlock, 1000);
+    // --- Tap to pin ---
+    // If the app already has a tap-to-add function, we'll call it; otherwise, we create a basic marker.
+    if (!window.__tapToPinAttached) {
+      let nextNo = 1;
+      const getNextNo = () => (window.getNextPointNumber ? window.getNextPointNumber() : nextNo++);
 
-    // Export guard for GPS callbacks (if code checks it)
-    window.__centerGuard = { isCooling, allow: () => window.__allowCentering = true, block };
+      map.on('click', function(e){
+        const latlng = e.latlng;
+        // Prefer existing app function if present
+        if (typeof window.addPointAtLatLng === 'function') {
+          try {
+            window.addPointAtLatLng(latlng.lat, latlng.lng, getNextNo());
+            return;
+          } catch(e){ console.warn('addPointAtLatLng failed:', e); }
+        }
+        if (typeof window.confirmAddPointAtLocation === 'function') {
+          try {
+            window.confirmAddPointAtLocation(latlng.lat, latlng.lng);
+            return;
+          } catch(e){ console.warn('confirmAddPointAtLocation failed:', e); }
+        }
+        // Fallback: drop a simple marker with numbering
+        const n = getNextNo();
+        L.marker(latlng).addTo(map).bindPopup('จุดที่ ' + n).openPopup();
+      });
+
+      window.__tapToPinAttached = true;
+    }
 
     return true;
   }
+
   let tries = 0;
   (function wait(){ if (!attach() && tries++ < 80) setTimeout(wait, 250); })();
 })();
