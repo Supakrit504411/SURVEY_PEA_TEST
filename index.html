@@ -308,6 +308,18 @@ body.swal2-shown .map-overlay {
   touch-action: manipulation;
 }
 
+
+/* --- MEASURE TOOL (auto-injected) --- */
+.leaflet-tooltip.measure-label {
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
 </style>
   <style>@view-transition { navigation: auto; }</style>
   <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
@@ -1039,66 +1051,62 @@ function initializeMap() {
         }
 
         function getCurrentLocation() {
-            if (navigator.geolocation) {
-                Alert.fire({
-                    title: 'กำลังค้นหาตำแหน่ง...',
-                    allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
-                });
-                
-                // หยุดการติดตามเก่าถ้ามี
-                if (watchId) {
-                    navigator.geolocation.clearWatch(watchId);
-                }
-                
-                // เริ่มติดตามตำแหน่ง
-                watchId = navigator.geolocation.watchPosition(
-                    (position) => {
-                        const lat = position.coords.latitude;
-                        const lng = position.coords.longitude;
-                        console.log('Location updated:', lat, lng);
-                        
-                        // อัปเดตตำแหน่งปัจจุบัน
-                        updateCurrentLocationMarker(lat, lng);
-                        
-                        // ย้ายแผนที่ไปยังตำแหน่งปัจจุบันครั้งแรก
-                        if (!currentLocationMarker) {
-                            map.setView([lat, lng], 16);
-                        }
-                        
-                        Swal.close();
-                    },
-                    (error) => {
-                        console.error('Geolocation error:', error);
-                        Swal.close();
-                        Alert.fire({
-                            title: 'ไม่สามารถหาตำแหน่งได้',
-                            text: 'กรุณาเปิด GPS และอนุญาตการเข้าถึงตำแหน่ง',
-                            icon: 'error',
-                            confirmButtonText: 'ตกลง',
-                            allowOutsideClick: false,
-                            allowEscapeKey: false
-                        });
-                    },
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 100000,
-                        maximumAge: 5000
-                    }
-                );
-            } else {
-                Alert.fire({
-                    title: 'ไม่รองรับ GPS',
-                    text: 'เบราว์เซอร์นี้ไม่รองรับการหาตำแหน่ง',
-                    icon: 'error',
-                    confirmButtonText: 'ตกลง',
-                    allowOutsideClick: false,
-                    allowEscapeKey: false
-                });
-            }
+  if (!navigator.geolocation) {
+    return Alert.fire({
+      title: 'ไม่รองรับ GPS',
+      text: 'เบราว์เซอร์นี้ไม่รองรับการหาตำแหน่ง',
+      icon: 'error'
+    });
+  }
+
+  // แสดงโหลดแบบผูก state ของตัวเอง
+  let __geoLoading = true;
+  Alert.fire({
+    title: 'กำลังค้นหาตำแหน่ง...',
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading()
+  });
+
+  try {
+    if (typeof watchId !== 'undefined' && watchId) {
+      navigator.geolocation.clearWatch(watchId);
+    }
+  } catch (e) {}
+
+  watchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+
+      try {
+        if (typeof updateCurrentLocationMarker === 'function') {
+          updateCurrentLocationMarker(lat, lng);
         }
+        if (typeof map !== 'undefined' && map && (!window.currentLocationMarker || !map.getBounds().contains([lat,lng]))) {
+          map.setView([lat, lng], 16);
+        }
+      } catch (e) { console.warn(e); }
+
+      // ปิดเฉพาะ "loading" ของเราเท่านั้น
+      if (__geoLoading && Swal.isVisible() && document.querySelector('.swal2-loader')) {
+        Swal.close();
+        __geoLoading = false;
+      }
+    },
+    (err) => {
+      if (__geoLoading && Swal.isVisible() && document.querySelector('.swal2-loader')) {
+        Swal.close();
+      }
+      Alert.fire({
+        title: 'ไม่สามารถหาตำแหน่งได้',
+        text: 'กรุณาเปิด GPS และอนุญาตการเข้าถึงตำแหน่ง',
+        icon: 'error'
+      });
+    },
+    { enableHighAccuracy: true, timeout: 100000, maximumAge: 5000 }
+  );
+}
+
         
         function updateCurrentLocationMarker(lat, lng) {
             // ลบ marker เก่า
@@ -3291,5 +3299,105 @@ async function uploadFile(file) {
             return kml;
         }
     </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9909fe9ea5e7895a',t:'MTc2MDgxMTA0OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9909fe9ea5e7895a',t:'MTc2MDgxMTA0OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
+<script>
+// === Long-press Measure-on-Drag for mobile & desktop (auto-injected) ===
+(function(){
+  let readyTries = 0;
+  function ready(){
+    if (window.L && window.map && typeof map.on === 'function') {
+      attachMeasureHandlers();
+    } else if (readyTries++ < 40) {
+      setTimeout(ready, 250);
+    }
+  }
+  function formatDistance(m){
+    if (m >= 1000) return (m/1000).toFixed(2) + ' กม.';
+    return Math.round(m) + ' ม.';
+  }
+  function attachMeasureHandlers(){
+    let measure = {
+      active: false,
+      start: null,
+      line: null,
+      tip: null,
+      pressTimer: null
+    };
+
+    const startMeasure = (latlng) => {
+      measure.active = true;
+      measure.start = latlng;
+      if (measure.line) { map.removeLayer(measure.line); measure.line = null; }
+      if (measure.tip)  { map.removeLayer(measure.tip);  measure.tip  = null; }
+
+      measure.line = L.polyline([latlng, latlng], {
+        color: '#1976D2',
+        weight: 3,
+        opacity: 0.9,
+        dashArray: '8,8'
+      }).addTo(map);
+
+      measure.tip = L.tooltip({
+        permanent: true,
+        direction: 'center',
+        className: 'measure-label'
+      })
+      .setLatLng(latlng)
+      .setContent('0 ม.')
+      .addTo(map);
+
+      // ปิด drag map ขณะวัด (กันการชนกับ pan)
+      if (map.dragging && map.dragging.disable) map.dragging.disable();
+    };
+
+    const updateMeasure = (latlng) => {
+      if (!measure.active || !measure.start || !measure.line) return;
+      measure.line.setLatLngs([measure.start, latlng]);
+      const dist = map.distance(measure.start, latlng);
+      const mid = L.latLng( (measure.start.lat + latlng.lat)/2, (measure.start.lng + latlng.lng)/2 );
+      if (measure.tip) {
+        measure.tip.setLatLng(mid).setContent(formatDistance(dist));
+      }
+    };
+
+    const endMeasure = () => {
+      if (!measure.active) return;
+      measure.active = false;
+      measure.start = null;
+      // คงแสดงผลไว้สั้น ๆ แล้วลบทิ้ง หรือจะลบทันที (เลือกทันทีเพื่อลดรกหน้าจอ)
+      if (measure.line) { map.removeLayer(measure.line); measure.line = null; }
+      if (measure.tip)  { map.removeLayer(measure.tip);  measure.tip  = null; }
+      if (map.dragging && map.dragging.enable) map.dragging.enable();
+      clearTimeout(measure.pressTimer); measure.pressTimer = null;
+    };
+
+    // เริ่มด้วย "กดค้าง" ~500ms เพื่อเข้าโหมดวัด ไม่ชนกับการลากแผนที่
+    const PRESS_MS = 500;
+
+    map.on('touchstart mousedown', function(e){
+      if (measure.active) return;
+      clearTimeout(measure.pressTimer);
+      measure.pressTimer = setTimeout(() => startMeasure(e.latlng), PRESS_MS);
+    });
+
+    map.on('touchmove mousemove', function(e){
+      if (measure.active) {
+        updateMeasure(e.latlng);
+      }
+    });
+
+    map.on('touchend mouseup', function(){
+      // ถ้านับเวลาไม่ถึงก็ถือว่าเป็นแค่แตะ/ลากธรรมดา
+      clearTimeout(measure.pressTimer);
+      if (measure.active) endMeasure();
+    });
+
+    // ป้องกันกรณีผู้ใช้กดยกนิ้วนอกจอหรือเปลี่ยนแท็บ
+    document.addEventListener('visibilitychange', () => { if (document.hidden) endMeasure(); });
+    window.addEventListener('blur', endMeasure);
+  }
+  ready();
+})();
+</script>
+</body>
 </html>
