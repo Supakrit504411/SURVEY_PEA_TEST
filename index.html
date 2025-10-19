@@ -324,7 +324,15 @@ body.swal2-shown .map-overlay {
   <style>@view-transition { navigation: auto; }</style>
   <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
   <script src="/_sdk/element_sdk.js" type="text/javascript"></script>
- </head>
+ 
+<style>
+#top-right-controls button,
+.map-overlay .follow-control,
+.map-overlay .leaflet-bar button {
+  font-size: 16px;
+}
+</style>
+</head>
  <body class="bg-gradient-to-br from-blue-50 to-indigo-100 font-sans">
   <div class="main-container"><!-- Navigation Bar -->
    <nav class="navbar px-4 py-3">
@@ -374,15 +382,18 @@ body.swal2-shown .map-overlay {
      <div class="text-xs space-y-1">
       <div class="flex justify-between"><span>ระยะล่าสุด:</span> <span id="lastDistance" class="font-bold text-blue-600">0 ม.</span>
       </div>
+<div class="map-overlay" style="top: 10px; right: 10px; margin-top: 58px; background: rgba(255,255,255,.95);">
+  <div class="flex gap-2 items-center justify-end flex-wrap">
+    <button id="currentLocationBtn" class="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition-colors" title="ตำแหน่งปัจจุบัน"> 📍 </button><button id="toggleMapBtn" class="bg-gray-600 text-white p-2 rounded hover:bg-gray-700 transition-colors" title="เปลี่ยนแผนที่"> 🗺️ </button><button id="addPointBtn" class="bg-red-600 text-white p-2 rounded hover:bg-red-700 transition-colors" title="ปักหมุด"> ➕ </button>
+  </div>
+</div>
+
       <div class="flex justify-between"><span>ระยะรวม:</span> <span id="totalDistance" class="font-bold text-green-600">0 ม.</span>
       </div>
       <div class="flex justify-between"><span>จุดทั้งหมด:</span> <span id="totalPoints" class="font-bold text-purple-600">0</span>
       </div>
      </div>
     </div><!-- ปุ่มควบคุมแผนที่ (มุมล่างขวา) -->
-    <div class="map-overlay map-overlay-bottom-right">
-     <div class="flex flex-col space-y-2"><button id="currentLocationBtn" class="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition-colors" title="ตำแหน่งปัจจุบัน"> 📍 </button> <button id="toggleMapBtn" class="bg-gray-600 text-white p-2 rounded hover:bg-gray-700 transition-colors" title="เปลี่ยนแผนที่"> 🗺️ </button> <button id="addPointBtn" class="bg-red-600 text-white p-2 rounded hover:bg-red-700 transition-colors" title="ปักหมุด"> ➕ </button>
-     </div>
     </div>
    </div>
   </div><!-- Modal สำหรับเริ่มโครงการใหม่ -->
@@ -881,6 +892,13 @@ function initializeMap() {
                         attribution: '© OpenStreetMap contributors',
                         maxZoom: 19
                     }).addTo(map);
+                    // User interaction flags to pause auto-follow when panning/zooming
+                    window.__userInteracting = false;
+                    const __setInteractingTrue = () => { window.__userInteracting = true; };
+                    const __setInteractingFalse = () => { window.__userInteracting = false; };
+                    map.on('dragstart zoomstart movestart touchstart', __setInteractingTrue);
+                    map.on('dragend zoomend moveend touchend', __setInteractingFalse);
+
                     
                     polyline = L.polyline([], {
                         color: '#3b82f6',
@@ -958,10 +976,41 @@ function initializeMap() {
             }
         }
 
-        function showNewProjectModal() {
+        
+function showNewProjectModal() {
+    // ถ้ามีงานที่เพิ่งเสร็จสิ้นจาก Modal แต่ยังไม่ได้บันทึก ให้ถามก่อน
+    if (window.__hasUnstoredChanges) {
+        Alert.fire({
+            title: 'คุณยังไม่ได้ทำการบันทึก',
+            text: 'ต้องการบันทึกหรือไม่?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'ใช่, บันทึก',
+            cancelButtonText: 'ไม่บันทึก'
+        }).then(async (res) => {
+            if (res.isConfirmed) {
+                try {
+                    if (typeof saveAllDataToSheets === 'function') {
+                        await saveAllDataToSheets();
+                    } else if (typeof saveAllData === 'function') {
+                        await saveAllData();
+                    }
+                } catch(err) {
+                    console.error('Save failed:', err);
+                }
+            }
+            window.__hasUnstoredChanges = false;
+            // เปิด modal โครงการใหม่
             document.getElementById('newProjectModal').classList.remove('hidden');
             document.getElementById('newProjectModal').classList.add('flex');
-        }
+        });
+        return;
+    }
+    // เดิม: เปิด modal โครงการใหม่
+    document.getElementById('newProjectModal').classList.remove('hidden');
+    document.getElementById('newProjectModal').classList.add('flex');
+}
+
 
         function hideNewProjectModal() {
             document.getElementById('newProjectModal').classList.add('hidden');
@@ -1050,7 +1099,8 @@ function initializeMap() {
             });
         }
 
-        function getCurrentLocation() {
+        function getCurrentLocation() {  if (window.__followUser && typeof window.__followUser.set==='function') window.__followUser.set(true);
+
   if (!navigator.geolocation) {
     return Alert.fire({
       title: 'ไม่รองรับ GPS',
@@ -1083,7 +1133,7 @@ function initializeMap() {
           updateCurrentLocationMarker(lat, lng);
         }
         if (typeof map !== 'undefined' && map && (!window.currentLocationMarker || !map.getBounds().contains([lat,lng]))) {
-          map.setView([lat, lng], 16);
+          if (!window.__followUser || window.__followUser.get()) { if ((!window.__userInteracting) && (!window.__followUser || window.__followUser.get())) { map.setView([lat, lng], 16); } }
         }
       } catch (e) { console.warn(e); }
 
@@ -1106,6 +1156,7 @@ function initializeMap() {
     { enableHighAccuracy: true, timeout: 100000, maximumAge: 5000 }
   );
 }
+
 
         
         function updateCurrentLocationMarker(lat, lng) {
@@ -1364,6 +1415,7 @@ function initializeMap() {
                 
                 // ตั้งสถานะว่าโครงการเสร็จสิ้นแล้ว
                 isProjectFinished = true;
+                window.__hasUnstoredChanges = true;
                 
                 // ลบเส้นประวัดระยะทางและ event listeners ทันที
                 clearAllDistanceElements();
@@ -3399,5 +3451,69 @@ async function uploadFile(file) {
   ready();
 })();
 </script>
+
+<script>
+// === Follow Me Toggle Control (auto-injected) ===
+(function(){
+  let followUser = true;
+  function updateBtn(btn){
+    if (!btn) return;
+    btn.innerHTML = followUser ? '📍 ติดตามตำแหน่ง: เปิด' : '📍 ติดตามตำแหน่ง: ปิด';
+    btn.classList.toggle('follow-off', !followUser);
+  }
+  function attach(){
+    if (!window.L || !window.map || typeof map.addControl !== 'function') return false;
+    if (map.__followControlAttached) return true;
+
+    const FollowControl = L.Control.extend({
+      onAdd: function(){
+        const btn = L.DomUtil.create('button', 'leaflet-bar follow-control');
+        btn.type = 'button';
+        btn.style.padding = '6px 8px';
+        btn.style.minWidth = '140px';
+        btn.style.fontSize = '12px';
+        btn.style.cursor = 'pointer';
+        btn.style.background = '#fff';
+        btn.style.border = '1px solid #ccc';
+        btn.style.borderRadius = '6px';
+        btn.style.boxShadow = '0 2px 6px rgba(0,0,0,.1)';
+        updateBtn(btn);
+        L.DomEvent.on(btn, 'click', function(e){
+          L.DomEvent.stopPropagation(e);
+          followUser = !followUser;
+          updateBtn(btn);
+        });
+        return btn;
+      },
+      onRemove: function(){}
+    });
+
+    const ctrl = new FollowControl({ position: 'topleft' });
+    map.addControl(ctrl);
+
+    // Disable follow on any user interaction
+    const stopFollow = () => { followUser = false; updateBtn(document.querySelector('.follow-control')); };
+    map.on('dragstart zoomstart touchstart', stopFollow);
+
+    // expose getter/setter for other parts
+    window.__followUser = {
+      get: () => followUser,
+      set: (v) => { followUser = !!v; updateBtn(document.querySelector('.follow-control')); }
+    };
+
+    map.__followControlAttached = true;
+    return true;
+  }
+
+  // wait for map
+  let tries = 0;
+  (function wait(){
+    if (!attach() && tries++ < 60) setTimeout(wait, 250);
+  })();
+})();
+</script>
+<style>
+.follow-control.follow-off{ opacity: .85; }
+</style>
 </body>
 </html>
