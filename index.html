@@ -1644,6 +1644,9 @@ function showNewProjectModal() {
             const marker = L.marker([lat, lng], { icon: customIcon }).addTo(map);
             marker.bindPopup(`จุดที่ ${number}<br>พิกัด: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
             markers.push(marker);
+            // แจ้งให้ระบบวัดระยะรู้ว่าพินล่าสุดอยู่ที่ไหน (สำหรับเส้นประ + ตัวเลขแบบ realtime ระหว่างเลื่อนหา)
+            try { if (typeof window.registerPin === 'function') window.registerPin(lat, lng); } catch (e) { console.warn(e); }
+
             
             const points = surveyPoints.map(point => [point.lat, point.lng]);
             polyline.setLatLngs(points);
@@ -2059,10 +2062,7 @@ async function uploadFile(file) {
                     surveyor: currentSurveyor
                 });
                 
-                const response = await fetch(SCRIPT_URL, {
-                    method: 'POST',
-                    body: params
-                });
+                const response = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
                 
                 const result = await response.json();
                 return result.success ? result.url : '';
@@ -2985,7 +2985,6 @@ async function uploadFile(file) {
         }
 
         async function updateProjectStatus(project, status) {
-
             try {
                 showLoadingOverlay('กำลังอัปเดตสถานะ...');
                 
@@ -2996,14 +2995,9 @@ async function uploadFile(file) {
                         action: 'updateStatus',
                         project: project,
                         status: status
-                    
-}
-);
-                    
-                    const response = await fetch(SCRIPT_URL, {
-                        method: 'POST',
-                        body: params
                     });
+                    
+                    const response = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
                     
                     const result = await response.json();
                     if (result.success) {
@@ -3153,33 +3147,13 @@ async function uploadFile(file) {
             });
         }
 
-        
-async function downloadKML(projectName){
-  try{
-    if (!window.SCRIPT_URL) throw new Error('SCRIPT_URL is not set');
-    const body = new URLSearchParams();
-    body.append('action','generateKML');
-    body.append('project', projectName);
-    const res = await fetch(SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-      body: body.toString()
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    if (!data.success || !data.kml) throw new Error(data.error || 'No KML returned');
-    const blob = new Blob([data.kml], { type: 'application/vnd.google-earth.kml+xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `${projectName}.kml`;
-    document.body.appendChild(a); a.click(); a.remove();
-    URL.revokeObjectURL(url);
-  }catch(err){
-    if (window.Swal) Swal.fire('ไม่สามารถดาวน์โหลด KML', String(err), 'error');
-    else alert('ไม่สามารถดาวน์โหลด KML: ' + err);
-  }
-}
-?action=generateKML&project=${encodeURIComponent(project)}`);
+        async function downloadKML(project) {
+            try {
+                showLoadingOverlay('กำลังสร้างไฟล์ KML...');
+                
+                // ลองดาวน์โหลดจาก Google Sheets ก่อน
+                try {
+                    const response = await fetch(`${SCRIPT_URL}?action=generateKML&project=${encodeURIComponent(project)}`);
                     const data = await response.json();
                     
                     if (data.success) {
@@ -3849,43 +3823,5 @@ async function downloadKML(projectName){
 })();
 </script>
 
-
-<script id="mobile-pan-measure-fix">
-(function(){
-  function attach(){
-    if (!window.map || typeof map.on!=='function' || typeof window.updateTempLine!=='function') return false;
-    if (window.__mobilePanMeasureAttached) return true;
-    let __isUserPanning = false;
-    map.on('movestart', function(){
-      __isUserPanning = true;
-      try{
-        if (window.currentSurveyor && window.currentProject && Array.isArray(window.surveyPoints) && window.surveyPoints.length>0){
-          updateTempLine(map.getCenter());
-        }
-      }catch(e){}
-    });
-    map.on('move', function(){
-      if (!__isUserPanning) return;
-      try{
-        if (window.currentSurveyor && window.currentProject && Array.isArray(window.surveyPoints) && window.surveyPoints.length>0){
-          updateTempLine(map.getCenter());
-        }
-      }catch(e){}
-    });
-    map.on('moveend', function(){
-      __isUserPanning = false;
-      // ถ้าต้องการเคลียร์เส้นชั่วคราว ให้ปลดคอมเมนต์ด้านล่าง:
-      // try{
-      //   if (window.tempLine && typeof window.tempLine.setLatLngs==='function') window.tempLine.setLatLngs([]);
-      //   if (window.distanceLabel && typeof map.removeLayer==='function') map.removeLayer(window.distanceLabel);
-      // }catch(e){}
-    });
-    window.__mobilePanMeasureAttached = true;
-    console.log('[patch] mobile pan measurement attached');
-    return true;
-  }
-  let tries=0;(function wait(){ if(!attach() && tries++<120) setTimeout(wait, 250); })();
-})();
-</script>
 </body>
 </html>
