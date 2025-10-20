@@ -829,7 +829,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('clearDataBtn').addEventListener('click', confirmClearDataFromNav);
             
             // ปุ่มในแผนที่
-            document.getElementById('currentLocationBtn').addEventListener('click', getCurrentLocation);
+            document.getElementById('currentLocationBtn').addEventListener('click', () => {  if (window.__followUser && typeof window.__followUser.set === 'function') { window.__followUser.set(true); }  if (window.map) map.__forceNextCenter = true;  getCurrentLocation();});;
             document.getElementById('toggleMapBtn').addEventListener('click', toggleMapView);
             document.getElementById('addPointBtn').addEventListener('click', confirmAddPoint);
             
@@ -943,10 +943,7 @@ function initializeMap() {
                         }
                     });
                     
-                    map.whenReady(() => {
-                        console.log('Map ready');
-                        getCurrentLocation();
-                    });
+                    map.whenReady(() => { console.log('Map ready'); /* auto-locate disabled */ });
                     
                     console.log('Map initialized successfully');
                 } catch (error) {
@@ -1149,7 +1146,7 @@ function showNewProjectModal() {
           updateCurrentLocationMarker(lat, lng);
         }
         if (typeof map !== 'undefined' && map && (!window.currentLocationMarker || !map.getBounds().contains([lat,lng]))) {
-          if (!window.__followUser || window.__followUser.get()) { if ((!window.__userInteracting) && (!window.__followUser || window.__followUser.get())) { if ((!window.__antiRecenter || !window.__antiRecenter.isBlocked()) && (!window.__followUser || window.__followUser.get())) { if ((!window.__antiRecenter || !window.__antiRecenter.isBlocked()) && (!window.__followUser || window.__followUser.get())) { map.setView([lat, lng], 16) } }; } }
+          if (!window.__followUser || window.__followUser.get()) { if ((!window.__userInteracting) && (!window.__followUser || window.__followUser.get())) { if ((!window.__antiRecenter || !window.__antiRecenter.isBlocked()) && (!window.__followUser || window.__followUser.get())) { if ((!window.__antiRecenter || !window.__antiRecenter.isBlocked()) && (!window.__followUser || window.__followUser.get())) { if (typeof window.__gpsCenterGuard==='function'){ window.__gpsCenterGuard(lat,lng,16); } } }; } }
         }
       } catch (e) { console.warn(e); }
 
@@ -3159,27 +3156,27 @@ async function uploadFile(file) {
         
 async function downloadKML(projectName){
   try{
+    if (!window.SCRIPT_URL) throw new Error('SCRIPT_URL is not set');
     const body = new URLSearchParams();
     body.append('action','generateKML');
     body.append('project', projectName);
     const res = await fetch(SCRIPT_URL, {
-      method:'POST',
-      headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
       body: body.toString()
     });
-    if(!res.ok) throw new Error('HTTP '+res.status);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    if(!data.success || !data.kml) throw new Error(data.error || 'No KML returned');
-    const blob = new Blob([data.kml], {type:'application/vnd.google-earth.kml+xml'});
+    if (!data.success || !data.kml) throw new Error(data.error || 'No KML returned');
+    const blob = new Blob([data.kml], { type: 'application/vnd.google-earth.kml+xml' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `${projectName}.kml`;
+    a.href = url; a.download = `${projectName}.kml`;
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
   }catch(err){
     if (window.Swal) Swal.fire('ไม่สามารถดาวน์โหลด KML', String(err), 'error');
-    else alert('ไม่สามารถดาวน์โหลด KML: '+err);
+    else alert('ไม่สามารถดาวน์โหลด KML: ' + err);
   }
 }
 ?action=generateKML&project=${encodeURIComponent(project)}`);
@@ -3605,17 +3602,7 @@ async function downloadKML(projectName){
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 </style>
-p.__followControlAttached = true;
-    return true;
-  }
 
-  // wait for map
-  let tries = 0;
-  (function wait(){
-    if (!attach() && tries++ < 60) setTimeout(wait, 250);
-  })();
-})();
-</script>
 <style>
 .follow-control.follow-off{ opacity: .85; }
 </style>
@@ -3795,6 +3782,74 @@ p.__followControlAttached = true;
 </script>
 
 
+<script id="robust-locate-and-measure-fix">
+(function(){
+  // --- Robust current location handling ---
+  window.getCurrentLocation = (function(orig){
+    return function(){
+      if (!navigator.geolocation){
+        return Swal.fire({title:'ไม่รองรับ GPS', text:'เบราว์เซอร์นี้ไม่รองรับการหาตำแหน่ง', icon:'error'});
+      }
+      try { if (window.__followUser && typeof __followUser.set==='function') __followUser.set(true); } catch(e){}
+      if (window.map) map.__forceNextCenter = true;
+
+      let done = false;
+      const success = (pos)=>{
+        if (done) return; done = true;
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        try{
+          map.setView([lat, lng], 17);
+          L.circleMarker([lat,lng], {radius:6, color:'#1976D2', fillColor:'#1976D2', fillOpacity:.9})
+            .addTo(map).bindPopup('ตำแหน่งปัจจุบัน').openPopup();
+        }catch(e){ console.warn(e); }
+      };
+      const fail = (err)=>{
+        Swal.fire({title:'ไม่สามารถหาตำแหน่งได้', text:'กรุณาเปิด GPS และอนุญาตการเข้าถึงตำแหน่ง', icon:'error'});
+        console.warn(err);
+      };
+      navigator.geolocation.getCurrentPosition(success, ()=>{
+        let wid; const to=setTimeout(()=>{try{navigator.geolocation.clearWatch(wid);}catch(e){}; fail();},10000);
+        wid = navigator.geolocation.watchPosition(p=>{clearTimeout(to);success(p);navigator.geolocation.clearWatch(wid);},fail,{enableHighAccuracy:true,timeout:10000,maximumAge:0});
+      }, { enableHighAccuracy:true, timeout:15000, maximumAge:0 });
+    };
+  })(window.getCurrentLocation||function(){});
+
+  // --- Dashed line & distance display between last pin and center ---
+  function attachMeasure(){
+    if (!window.map || !window.L) return;
+    if (map.__measureAttached) return;
+    window.__lastPinLatLng = null;
+    window.registerPin = function(lat, lng){ window.__lastPinLatLng = L.latLng(lat, lng); };
+
+    let line=null,label=null;
+    const fmt=(m)=>m>=1000?(m/1000).toFixed(2)+' กม.':Math.round(m)+' ม.';
+
+    map.on('movestart', ()=>{
+      if(!window.__lastPinLatLng) return;
+      if(line){map.removeLayer(line);} if(label){map.removeLayer(label);}
+      line=L.polyline([window.__lastPinLatLng, window.__lastPinLatLng],{color:'#1976D2',weight:3,dashArray:'10,8',opacity:0.9}).addTo(map);
+      label=L.tooltip({permanent:true,direction:'center',className:'measure-label'}).setLatLng(window.__lastPinLatLng).setContent('0 ม.').addTo(map);
+    });
+
+    map.on('move', ()=>{
+      if(!window.__lastPinLatLng||!line||!label) return;
+      const cur=map.getCenter();
+      line.setLatLngs([window.__lastPinLatLng,cur]);
+      const d=map.distance(window.__lastPinLatLng,cur);
+      const mid=L.latLng((window.__lastPinLatLng.lat+cur.lat)/2,(window.__lastPinLatLng.lng+cur.lng)/2);
+      label.setLatLng(mid).setContent(fmt(d));
+      const el=document.getElementById('lastDistance')||document.getElementById('distanceText')||document.getElementById('totalDistance');
+      if(el) el.textContent=fmt(d);
+    });
+
+    map.on('moveend zoomstart', ()=>{ if(line){map.removeLayer(line);} if(label){map.removeLayer(label);} });
+    map.__measureAttached=true;
+  }
+  let tries=0;(function wait(){if(!attachMeasure()&&tries++<50)setTimeout(wait,250);})();
+})();
+</script>
+
+
 <script id="mobile-pan-measure-fix">
 (function(){
   function attach(){
@@ -3819,16 +3874,17 @@ p.__followControlAttached = true;
     });
     map.on('moveend', function(){
       __isUserPanning = false;
-      // keep temp line visible; uncomment to clear:
+      // ถ้าต้องการเคลียร์เส้นชั่วคราว ให้ปลดคอมเมนต์ด้านล่าง:
       // try{
       //   if (window.tempLine && typeof window.tempLine.setLatLngs==='function') window.tempLine.setLatLngs([]);
       //   if (window.distanceLabel && typeof map.removeLayer==='function') map.removeLayer(window.distanceLabel);
       // }catch(e){}
     });
     window.__mobilePanMeasureAttached = true;
+    console.log('[patch] mobile pan measurement attached');
     return true;
   }
-  let tries=0;(function wait(){ if(!attach() && tries++<120) setTimeout(wait,250); })();
+  let tries=0;(function wait(){ if(!attach() && tries++<120) setTimeout(wait, 250); })();
 })();
 </script>
 </body>
