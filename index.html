@@ -753,6 +753,29 @@ const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/
             console.log('🎉 เติมข้อมูล dropdown เสร็จสิ้น!');
         }
 
+// === Toast helpers (วางเหนือ setupEventListeners) ===
+function notifySuccess(message) {
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon: 'success',
+    title: message,
+    showConfirmButton: false,
+    timer: 3000
+  });
+}
+function notifyError(message) {
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon: 'error',
+    title: message,
+    showConfirmButton: false,
+    timer: 3000
+  });
+}
+
+
         function setupEventListeners() {
             // ปุ่มในแถบนำทาง
             document.getElementById('newProjectBtn').addEventListener('click', showNewProjectModal);
@@ -761,7 +784,17 @@ const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/
             document.getElementById('clearDataBtn').addEventListener('click', confirmClearDataFromNav);
             
             // ปุ่มในแผนที่
-            document.getElementById('currentLocationBtn').addEventListener('click', getCurrentLocation);
+            // แทนที่บรรทัดเดิม
+document.getElementById('currentLocationBtn').addEventListener('click', () => {
+  // ถ้ามี marker แล้ว ให้เลื่อนแผนที่ไปหา marker ทันที
+  if (currentLocationMarker) {
+    map.setView(currentLocationMarker.getLatLng(), 16);
+  } else {
+    // ถ้ายังไม่เคยได้ตำแหน่ง ให้เรียกหา GPS
+    getCurrentLocation(true);
+  }
+});
+
             document.getElementById('toggleMapBtn').addEventListener('click', toggleMapView);
             document.getElementById('addPointBtn').addEventListener('click', confirmAddPoint);
             
@@ -793,6 +826,32 @@ const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/
                     filterTable();
                 }
             });
+// === NEW: event delegation สำหรับปุ่มดาวน์โหลด KML ในตาราง ===
+document.addEventListener('click', function (e) {
+  const btn = e.target.closest('.download-kml');
+  if (!btn) return;  // ถ้าไม่ได้คลิกที่ปุ่ม KML ให้ข้าม
+
+  const project = (btn.dataset.project || '').trim();
+  if (!project) {
+    // ถ้ามี helper toast แล้ว ให้ใช้; ถ้าไม่มีก็ใช้ Swal แบบยืนยัน
+    if (typeof notifyError === 'function') {
+      notifyError('ไม่พบชื่อโครงการสำหรับดาวน์โหลด KML');
+    } else {
+      Swal.fire({
+        title: 'ไม่พบชื่อโครงการ',
+        text: 'ไม่พบชื่อโครงการสำหรับดาวน์โหลด KML',
+        icon: 'error',
+        confirmButtonText: 'ตกลง',
+        allowOutsideClick: false
+      });
+    }
+    return;
+  }
+
+  // เรียกฟังก์ชันเดิม
+  downloadKML(project);
+});
+
         }
 
 //222222222222
@@ -1013,67 +1072,48 @@ function disableLiveMeasure() {
             });
         }
 
-        function getCurrentLocation() {
-            if (navigator.geolocation) {
-                Swal.fire({
-                    title: 'กำลังค้นหาตำแหน่ง...',
-                    allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
-                });
-                
-                // หยุดการติดตามเก่าถ้ามี
-                if (watchId) {
-                    navigator.geolocation.clearWatch(watchId);
-                }
-                
-                // เริ่มติดตามตำแหน่ง
-                watchId = navigator.geolocation.watchPosition(
-                    (position) => {
-                        const lat = position.coords.latitude;
-                        const lng = position.coords.longitude;
-                        console.log('Location updated:', lat, lng);
-                        
-                        // อัปเดตตำแหน่งปัจจุบัน
-                        updateCurrentLocationMarker(lat, lng);
-                        
-                        // ย้ายแผนที่ไปยังตำแหน่งปัจจุบันครั้งแรก
-                        if (!currentLocationMarker) {
-                            map.setView([lat, lng], 16);
-                        }
-                        
-                        Swal.close();
-                    },
-                    (error) => {
-                        console.error('Geolocation error:', error);
-                        Swal.close();
-                        Swal.fire({
-                            title: 'ไม่สามารถหาตำแหน่งได้',
-                            text: 'กรุณาเปิด GPS และอนุญาตการเข้าถึงตำแหน่ง',
-                            icon: 'error',
-                            confirmButtonText: 'ตกลง',
-                            allowOutsideClick: false,
-                            allowEscapeKey: false
-                        });
-                    },
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 100000,
-                        maximumAge: 5000
-                    }
-                );
-            } else {
-                Swal.fire({
-                    title: 'ไม่รองรับ GPS',
-                    text: 'เบราว์เซอร์นี้ไม่รองรับการหาตำแหน่ง',
-                    icon: 'error',
-                    confirmButtonText: 'ตกลง',
-                    allowOutsideClick: false,
-                    allowEscapeKey: false
-                });
-            }
+       function getCurrentLocation(forceCenter = false) {
+  if (navigator.geolocation) {
+    Swal.fire({
+      title: 'กำลังค้นหาตำแหน่ง...',
+      allowOutsideClick: false,
+      didOpen: () => { Swal.showLoading(); }
+    });
+
+    if (watchId) navigator.geolocation.clearWatch(watchId);
+
+    watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+
+        updateCurrentLocationMarker(lat, lng);
+
+        // เงื่อนไขใหม่: ถ้าเพิ่งได้ตำแหน่งครั้งแรก หรือผู้ใช้กดปุ่มให้จัดกึ่งกลาง
+        if (!currentLocationMarker || forceCenter) {
+          map.setView([lat, lng], 16);
         }
+
+        Swal.close();
+      },
+      (error) => {
+        Swal.close();
+        Swal.fire({
+          title: 'ไม่สามารถหาตำแหน่งได้',
+          text: 'กรุณาเปิด GPS และอนุญาตการเข้าถึงตำแหน่ง',
+          icon: 'error',
+          confirmButtonText: 'ตกลง',
+          allowOutsideClick: false,
+          allowEscapeKey: false
+        });
+      },
+      { enableHighAccuracy: true, timeout: 100000, maximumAge: 5000 }
+    );
+  } else {
+    Swal.fire('ไม่รองรับ GPS', 'เบราว์เซอร์นี้ไม่รองรับการหาตำแหน่ง', 'error');
+  }
+}
+
         
         function updateCurrentLocationMarker(lat, lng) {
             // ลบ marker เก่า
@@ -2443,9 +2483,11 @@ function disableLiveMeasure() {
                     </td>
                     <td class="px-6 py-4 text-sm">${formattedDate}</td>
                     <td class="px-6 py-4 text-sm">
-                        <button onclick="downloadKML('${projectName}')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium">
-                            📥 KML
-                        </button>
+                        <button class="download-kml bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium"
+        data-project="${projectName}">
+  📥 KML
+</button>
+
                     </td>
                 `;
                 tbody.appendChild(row);
@@ -2875,20 +2917,19 @@ function disableLiveMeasure() {
                 let updatedInSheets = false;
                 try {
                     const params = new URLSearchParams({
-                        action: 'updateStatus',
-                        project: project,
-                        status: status
-                    });
-                    
-                    const response = await fetch(SCRIPT_URL, {
-                        method: 'POST',
-                        body: params
-                    });
-                    
-                    const result = await response.json();
-                    if (result.success) {
-                        updatedInSheets = true;
-                    }
+  action: 'updateStatus',
+  project: project,
+  status: status
+});
+
+const response = await fetch(SCRIPT_URL, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+  body: params.toString()
+});
+const result = await response.json();
+if (result.success) { updatedInSheets = true; }
+
                 } catch (error) {
                     console.log('ไม่สามารถอัปเดตใน Google Sheets ได้');
                 }
@@ -3062,8 +3103,8 @@ function disableLiveMeasure() {
                             title: 'ดาวน์โหลดสำเร็จ!',
                             text: 'ไฟล์ KML ถูกดาวน์โหลดเรียบร้อยแล้ว',
                             icon: 'success',
-                            timer: 20000,
-                            showConfirmButton: false
+                            confirmButtonText: 'ตกลง',
+ 				 allowOutsideClick: false
                         });
                         return;
                     }
@@ -3097,8 +3138,8 @@ function disableLiveMeasure() {
                     title: 'ดาวน์โหลดสำเร็จ!',
                     text: 'ไฟล์ KML ถูกสร้างเรียบร้อยแล้ว',
                     icon: 'success',
-                    timer: 20000,
-                    showConfirmButton: false
+                    confirmButtonText: 'ตกลง',
+  			allowOutsideClick: false
                 });
                 
             } catch (error) {
