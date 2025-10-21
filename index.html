@@ -502,6 +502,9 @@ const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/
         let currentLocationMarker = null;
         let distanceLabel = null;
         let watchId = null;
+	// ให้รีเซ็นเตอร์อัตโนมัติ “ครั้งถัดไปเท่านั้น”
+	let shouldCenterOnGPS = true;
+
 
         // เริ่มต้นแอป
         document.addEventListener('DOMContentLoaded', function() {
@@ -840,16 +843,20 @@ function notifyError(message) {
             document.getElementById('clearDataBtn').addEventListener('click', confirmClearDataFromNav);
             
             // ปุ่มในแผนที่
-            // แทนที่บรรทัดเดิม
-document.getElementById('currentLocationBtn').addEventListener('click', () => {
-  // ถ้ามี marker แล้ว ให้เลื่อนแผนที่ไปหา marker ทันที
+            document.getElementById('currentLocationBtn').addEventListener('click', () => {
+  // ขอให้ระบบรีเซ็นเตอร์ “ครั้งถัดไป” เท่านั้น
+  shouldCenterOnGPS = true;
+
   if (currentLocationMarker) {
+    // มีตำแหน่งล่าสุดแล้ว → รีเซ็นเตอร์ให้เลย 1 ครั้ง แล้วปิด auto-center
     map.setView(currentLocationMarker.getLatLng(), 16);
+    shouldCenterOnGPS = false;
   } else {
-    // ถ้ายังไม่เคยได้ตำแหน่ง ให้เรียกหา GPS
+    // ยังไม่มีพิกัด → ขอ GPS พร้อมบังคับรีเซ็นเตอร์ 1 ครั้ง แล้วแฟล็กจะถูกปิดใน getCurrentLocation
     getCurrentLocation(true);
   }
 });
+
 
             document.getElementById('toggleMapBtn').addEventListener('click', toggleMapView);
             document.getElementById('addPointBtn').addEventListener('click', confirmAddPoint);
@@ -963,7 +970,10 @@ function disableLiveMeasure() {
                         attribution: '© OpenStreetMap contributors',
                         maxZoom: 19
                     }).addTo(map);
-                    
+                    map.on('dragstart', () => { shouldCenterOnGPS = false; });
+			map.on('zoomstart', () => { shouldCenterOnGPS = false; });
+
+
                     polyline = L.polyline([], {
                         color: '#3b82f6',
                         weight: 3,
@@ -1149,10 +1159,14 @@ function getCurrentLocation(forceCenter = false) {
         // ฟังก์ชันเดิมของพี่
         updateCurrentLocationMarker(lat, lng);
 
-        // จัดกึ่งกลางเมื่อครั้งแรก หรือผู้ใช้กดปุ่มให้จัดกึ่งกลาง
-        if (!window.currentLocationMarker || forceCenter) {
-          map.setView([lat, lng], 16);
-        }
+        if (forceCenter) {
+  map.setView([lat, lng], 16);
+  shouldCenterOnGPS = false;   // รีเซ็นเตอร์ตามคำสั่งผู้ใช้แล้ว ปิด auto-center
+} else if (shouldCenterOnGPS) {
+  map.setView([lat, lng], 16); // รีเซ็นเตอร์อัตโนมัติครั้งเดียวเมื่อได้พิกัดแรก
+  shouldCenterOnGPS = false;   // แล้วปิดทันที กันเด้งกลับตอนลากแผนที่
+}
+
       } finally {
         hideLoadingOverlay(); // ไม่ใช้ Swal.close แล้ว
       }
@@ -1170,6 +1184,10 @@ function getCurrentLocation(forceCenter = false) {
     },
     { enableHighAccuracy: true, timeout: 100000, maximumAge: 5000 }
   );
+
+ else {
+    Swal.fire('ไม่รองรับ GPS', 'เบราว์เซอร์นี้ไม่รองรับการหาตำแหน่ง', 'error');
+  }
 }
 
         
