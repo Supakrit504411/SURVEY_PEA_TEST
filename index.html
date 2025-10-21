@@ -1144,7 +1144,7 @@ function getCurrentLocation(forceCenter = false) {
     return;
   }
 
-  // ใช้ overlay ของเราเองแทน SweetAlert loading (ไม่ปิด modal อื่น)
+  // ใช้ overlay ของเราเอง (ไม่ปิดโมดัลอื่น)
   showLoadingOverlay('กำลังค้นหาตำแหน่ง...');
 
   // เคลียร์ watch เดิมถ้ามี
@@ -1156,19 +1156,18 @@ function getCurrentLocation(forceCenter = false) {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
 
-        // ฟังก์ชันเดิมของพี่
         updateCurrentLocationMarker(lat, lng);
 
+        // รีเซ็นเตอร์ “ครั้งเดียว” เท่านั้น
         if (forceCenter) {
-  map.setView([lat, lng], 16);
-  shouldCenterOnGPS = false;   // รีเซ็นเตอร์ตามคำสั่งผู้ใช้แล้ว ปิด auto-center
-} else if (shouldCenterOnGPS) {
-  map.setView([lat, lng], 16); // รีเซ็นเตอร์อัตโนมัติครั้งเดียวเมื่อได้พิกัดแรก
-  shouldCenterOnGPS = false;   // แล้วปิดทันที กันเด้งกลับตอนลากแผนที่
-}
-
+          map.setView([lat, lng], 16);
+          shouldCenterOnGPS = false;
+        } else if (shouldCenterOnGPS) {
+          map.setView([lat, lng], 16);
+          shouldCenterOnGPS = false;
+        }
       } finally {
-        hideLoadingOverlay(); // ไม่ใช้ Swal.close แล้ว
+        hideLoadingOverlay();
       }
     },
     (error) => {
@@ -1184,10 +1183,6 @@ function getCurrentLocation(forceCenter = false) {
     },
     { enableHighAccuracy: true, timeout: 100000, maximumAge: 5000 }
   );
-
- else {
-    Swal.fire('ไม่รองรับ GPS', 'เบราว์เซอร์นี้ไม่รองรับการหาตำแหน่ง', 'error');
-  }
 }
 
         
