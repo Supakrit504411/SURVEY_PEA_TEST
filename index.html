@@ -470,7 +470,10 @@
    </div>
   </div>
   <script>
-	
+	// === SAFE OVERLAY (NO-OP) ===
+window.showLoadingOverlay = window.showLoadingOverlay || function(){};
+window.hideLoadingOverlay  = window.hideLoadingOverlay  || function(){};
+
         // ตัวแปรสำคัญ
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz3sc2q1SQAkeDN1MxHOClJLqPyuSwu7gEkZ_WkuI-FkrUb4tScLt43_TD4jIc1fqZUfw/exec';
         const SHEET_ID = '1gQR42JzTackvfuedJUW5Zm-s9N_sun0mFb8zdOPyeVg';
@@ -774,39 +777,58 @@ function notifyError(message) {
     timer: 3000
   });
 }
-// === Mobile-safe SweetAlert guard ===
-// ทำให้ทุก modal (ที่ไม่ใช่ toast) "ค้างรอผู้ใช้กด" บนมือถือ โดยไม่กระทบส่วนอื่น
-(function () {
-  const _swalFire = Swal.fire.bind(Swal);
-  Swal.fire = function (opts, ...rest) {
-    // แปลง string เป็น object ให้ก่อน (เผื่อบางที่ส่งเป็นสตริง)
-    if (typeof opts === 'string') opts = { title: String(opts) };
+// === Mobile-safe SweetAlert (safe attach) ===
+(function attachMobileSafeSwal(){
+  function patch() {
+    // ต้องมี Swal และยังไม่เคยแพตช์
+    if (!window.Swal || !Swal.fire || Swal.__mobilePatched) return;
 
-    // ถ้าเป็น toast ให้ปล่อยตามปกติ (ยังคง timer 3s ของ notifySuccess/notifyError)
-    if (opts && opts.toast) {
-      return _swalFire(opts, ...rest);
-    }
+    const _fire = Swal.fire.bind(Swal);
 
-    // สำหรับ "modal" (บนมือถือจะบังคับให้ต้องกดปุ่ม)
-    const safe = Object.assign(
-      {
-        // ป้องกันปิดเอง/ปิดจากการแตะด้านนอก/กด ESC
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-        // ป้องกัน viewport กระตุกตอนคีย์บอร์ดเปิดในมือถือ
-        heightAuto: false,
-        // ให้มีปุ่มยืนยันเสมอ
-        showConfirmButton: true,
-        confirmButtonText: opts?.confirmButtonText || 'ตกลง'
-      },
-      opts
-    );
+    Swal.fire = function (opts, ...rest) {
+      // ถ้า dev เรียกด้วย string ให้ห่อเป็น object
+      if (typeof opts === 'string') opts = { title: String(opts) };
 
-    // ลบ timer ออกเสมอสำหรับ modal เพื่อกันเด้งหายบนมือถือ
-    if ('timer' in safe) delete safe.timer;
+      // Toast ปล่อยผ่าน (คง timer ได้)
+      if (opts && opts.toast) {
+        return _fire(opts, ...rest);
+      }
 
-    return _swalFire(safe, ...rest);
-  };
+      // Modal: บังคับ “ค้างรอผู้ใช้กด” บนมือถือ
+      const safe = Object.assign(
+        {
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          heightAuto: false,
+          showConfirmButton: true,
+          confirmButtonText: (opts && opts.confirmButtonText) || 'ตกลง'
+        },
+        opts || {}
+      );
+
+      // ลบ timer ออกจาก modal เสมอ (กันเด้งหาย)
+      if ('timer' in safe) delete safe.timer;
+
+      return _fire(safe, ...rest);
+    };
+
+    Swal.__mobilePatched = true;
+  }
+
+  // แพตช์ทันทีถ้า Swal มีแล้ว
+  if (window.Swal && Swal.fire) {
+    patch();
+  } else {
+    // ถ้า script SweetAlert โหลดช้ากว่า เราจะรอ
+    const iv = setInterval(() => {
+      if (window.Swal && Swal.fire) {
+        clearInterval(iv);
+        patch();
+      }
+    }, 50);
+    // กันลูปยาวเกินไป
+    setTimeout(() => clearInterval(iv), 5000);
+  }
 })();
 
 
@@ -1112,26 +1134,28 @@ function getCurrentLocation(forceCenter = false) {
     return;
   }
 
-  // ใช้ overlay ของเราเอง แทน Swal.showLoading เพื่อไม่ไปรบกวน modal อื่น
+  // ใช้ overlay ของเราเองแทน SweetAlert loading (ไม่ปิด modal อื่น)
   showLoadingOverlay('กำลังค้นหาตำแหน่ง...');
 
   // เคลียร์ watch เดิมถ้ามี
-  if (watchId) navigator.geolocation.clearWatch(watchId);
+  if (window.watchId) navigator.geolocation.clearWatch(watchId);
 
-  watchId = navigator.geolocation.watchPosition(
+  window.watchId = navigator.geolocation.watchPosition(
     (position) => {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
+      try {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
 
-      updateCurrentLocationMarker(lat, lng);
+        // ฟังก์ชันเดิมของพี่
+        updateCurrentLocationMarker(lat, lng);
 
-      // จัดกึ่งกลางเมื่อครั้งแรก หรือผู้ใช้กดปุ่มให้จัดกึ่งกลาง
-      if (!currentLocationMarker || forceCenter) {
-        map.setView([lat, lng], 16);
+        // จัดกึ่งกลางเมื่อครั้งแรก หรือผู้ใช้กดปุ่มให้จัดกึ่งกลาง
+        if (!window.currentLocationMarker || forceCenter) {
+          map.setView([lat, lng], 16);
+        }
+      } finally {
+        hideLoadingOverlay(); // ไม่ใช้ Swal.close แล้ว
       }
-
-      // ปิด overlay (ไม่มี Swal.close() อีกแล้ว)
-      hideLoadingOverlay();
     },
     (error) => {
       hideLoadingOverlay();
