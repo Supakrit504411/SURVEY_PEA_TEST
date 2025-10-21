@@ -292,63 +292,11 @@
             border: 2px solid white;
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
-    
-/* --- MOBILE STABILITY FOR SWEETALERT2 (auto-injected) --- */
-body.swal2-shown #map,
-body.swal2-shown .leaflet-container,
-body.swal2-shown .map-overlay {
-  pointer-events: none !important;
-}
-.swal2-container {
-  position: fixed !important;
-  overscroll-behavior: contain;
-  z-index: 30000 !important;
-}
-.swal2-popup {
-  touch-action: manipulation;
-}
-
-
-/* --- MEASURE TOOL (auto-injected) --- */
-.leaflet-tooltip.measure-label {
-  background: rgba(0,0,0,0.75);
-  color: #fff;
-  border: 0;
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-}
-
-</style>
+    </style>
   <style>@view-transition { navigation: auto; }</style>
   <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
   <script src="/_sdk/element_sdk.js" type="text/javascript"></script>
- 
-<style>
-#top-right-controls button,
-.map-overlay .follow-control,
-.map-overlay .leaflet-bar button {
-  font-size: 16px;
-}
-</style>
-
-<style id="mobile-fixes-css">
-/* Mobile UX fixes (auto-injected) */
-.map-overlay { pointer-events: none; }
-.map-overlay * { pointer-events: auto; } /* keep controls clickable */
-#map, .leaflet-container { touch-action: manipulation; }
-.leaflet-tooltip.measure-label {
-  background: rgba(0,0,0,0.85);
-  color: #fff;
-  border: 0;
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-}
-</style>
-</head>
+ </head>
  <body class="bg-gradient-to-br from-blue-50 to-indigo-100 font-sans">
   <div class="main-container"><!-- Navigation Bar -->
    <nav class="navbar px-4 py-3">
@@ -398,18 +346,15 @@ body.swal2-shown .map-overlay {
      <div class="text-xs space-y-1">
       <div class="flex justify-between"><span>ระยะล่าสุด:</span> <span id="lastDistance" class="font-bold text-blue-600">0 ม.</span>
       </div>
-<div class="map-overlay" style="top: 10px; right: 10px; margin-top: 58px; background: rgba(255,255,255,.95);">
-  <div class="flex gap-2 items-center justify-end flex-wrap">
-    <button id="currentLocationBtn" class="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition-colors" title="ตำแหน่งปัจจุบัน"> 📍 </button><button id="toggleMapBtn" class="bg-gray-600 text-white p-2 rounded hover:bg-gray-700 transition-colors" title="เปลี่ยนแผนที่"> 🗺️ </button><button id="addPointBtn" class="bg-red-600 text-white p-2 rounded hover:bg-red-700 transition-colors" title="ปักหมุด"> ➕ </button>
-  </div>
-</div>
-
       <div class="flex justify-between"><span>ระยะรวม:</span> <span id="totalDistance" class="font-bold text-green-600">0 ม.</span>
       </div>
       <div class="flex justify-between"><span>จุดทั้งหมด:</span> <span id="totalPoints" class="font-bold text-purple-600">0</span>
       </div>
      </div>
     </div><!-- ปุ่มควบคุมแผนที่ (มุมล่างขวา) -->
+    <div class="map-overlay map-overlay-bottom-right">
+     <div class="flex flex-col space-y-2"><button id="currentLocationBtn" class="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition-colors" title="ตำแหน่งปัจจุบัน"> 📍 </button> <button id="toggleMapBtn" class="bg-gray-600 text-white p-2 rounded hover:bg-gray-700 transition-colors" title="เปลี่ยนแผนที่"> 🗺️ </button> <button id="addPointBtn" class="bg-red-600 text-white p-2 rounded hover:bg-red-700 transition-colors" title="ปักหมุด"> ➕ </button>
+     </div>
     </div>
    </div>
   </div><!-- Modal สำหรับเริ่มโครงการใหม่ -->
@@ -551,25 +496,7 @@ body.swal2-shown .map-overlay {
         let watchId = null;
 
         // เริ่มต้นแอป
-        
-// SweetAlert2 defaults for mobile stability
-// SweetAlert2 defaults for mobile stability (auto-injected)
-const Alert = Swal.mixin({
-  backdrop: true,
-  allowOutsideClick: false,
-  allowEscapeKey: false,
-  stopKeydownPropagation: true,
-  heightAuto: false,
-  scrollbarPadding: false,
-  focusConfirm: true,
-  showConfirmButton: true,
-  confirmButtonText: 'ตกลง',
-  didOpen: (popup) => {
-    const btn = popup.querySelector('.swal2-confirm');
-    if (btn) btn.focus();
-  }
-});
-document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function() {
             initializeApp();
         });
 
@@ -577,10 +504,10 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 await loadDropdownOptions();
                 setupEventListeners();
-                initializeMapWithRetry();
+                initializeMap();
             } catch (error) {
                 console.error('Error initializing app:', error);
-                Alert.fire('เกิดข้อผิดพลาด', 'ไม่สามารถเริ่มต้นแอปได้', 'error');
+                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถเริ่มต้นแอปได้', 'error');
             }
         }
 
@@ -662,7 +589,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 populateDropdowns();
                 
                 // แสดงข้อความแจ้งเตือน
-                Alert.fire({
+                Swal.fire({
                     title: '⚠️ ใช้ข้อมูลสำรอง',
                     html: `
                         <p>ไม่สามารถเชื่อมต่อ Google Sheets ได้</p>
@@ -698,7 +625,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 populateDropdowns();
                 
-                Alert.fire({
+                Swal.fire({
                     title: 'ข้อผิดพลาดการเชื่อมต่อ',
                     text: 'ใช้ข้อมูลสำรองเพื่อให้สามารถใช้งานได้',
                     icon: 'error',
@@ -829,7 +756,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('clearDataBtn').addEventListener('click', confirmClearDataFromNav);
             
             // ปุ่มในแผนที่
-            document.getElementById('currentLocationBtn').addEventListener('click', () => {  if (window.__followUser && typeof window.__followUser.set === 'function') { window.__followUser.set(true); }  if (window.map) map.__forceNextCenter = true;  getCurrentLocation();});;
+            document.getElementById('currentLocationBtn').addEventListener('click', getCurrentLocation);
             document.getElementById('toggleMapBtn').addEventListener('click', toggleMapView);
             document.getElementById('addPointBtn').addEventListener('click', confirmAddPoint);
             
@@ -863,38 +790,14 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        
-// Robust initializer to ensure Leaflet is loaded before creating the map
-function initializeMapWithRetry(maxRetries = 10, delay = 300) {
-  let tries = 0;
-  const tick = () => {
-    if (window.L && typeof L.map === 'function') {
-      try {
-        initializeMap();
-      } catch (err) {
-        console.error('initializeMap failed:', err);
-        Alert.fire('เกิดข้อผิดพลาด', 'ไม่สามารถเริ่มแผนที่ได้', 'error');
-      }
-      return;
-    }
-    tries++;
-    if (tries <= maxRetries) {
-      setTimeout(tick, delay);
-    } else {
-      console.error('Leaflet still not available after retries');
-      Alert.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดไลบรารีแผนที่ได้', 'error');
-    }
-  };
-  tick();
-}
-function initializeMap() {
+        function initializeMap() {
             setTimeout(() => {
                 try {
                     console.log('Initializing map...');
                     
                     if (typeof L === 'undefined') {
                         console.error('Leaflet not loaded');
-                        Alert.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดไลบรารีแผนที่ได้', 'error');
+                        Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดไลบรารีแผนที่ได้', 'error');
                         return;
                     }
                     
@@ -908,13 +811,6 @@ function initializeMap() {
                         attribution: '© OpenStreetMap contributors',
                         maxZoom: 19
                     }).addTo(map);
-                    // User interaction flags to pause auto-follow when panning/zooming
-                    window.__userInteracting = false;
-                    const __setInteractingTrue = () => { window.__userInteracting = true; };
-                    const __setInteractingFalse = () => { window.__userInteracting = false; };
-                    map.on('dragstart zoomstart movestart touchstart', __setInteractingTrue);
-                    map.on('dragend zoomend moveend touchend', __setInteractingFalse);
-
                     
                     polyline = L.polyline([], {
                         color: '#3b82f6',
@@ -943,12 +839,15 @@ function initializeMap() {
                         }
                     });
                     
-                    map.whenReady(() => { console.log('Map ready'); /* auto-locate disabled */ });
+                    map.whenReady(() => {
+                        console.log('Map ready');
+                        getCurrentLocation();
+                    });
                     
                     console.log('Map initialized successfully');
                 } catch (error) {
                     console.error('Error initializing map:', error);
-                    Alert.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดแผนที่ได้: ' + error.message, 'error');
+                    Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดแผนที่ได้: ' + error.message, 'error');
                 }
             }, 300);
         }
@@ -989,41 +888,10 @@ function initializeMap() {
             }
         }
 
-        
-function showNewProjectModal() {
-    // ถ้ามีงานที่เพิ่งเสร็จสิ้นจาก Modal แต่ยังไม่ได้บันทึก ให้ถามก่อน
-    if (window.__hasUnstoredChanges) {
-        Alert.fire({
-            title: 'คุณยังไม่ได้ทำการบันทึก',
-            text: 'ต้องการบันทึกหรือไม่?',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'ใช่, บันทึก',
-            cancelButtonText: 'ไม่บันทึก'
-        }).then(async (res) => {
-            if (res.isConfirmed) {
-                try {
-                    if (typeof saveAllDataToSheets === 'function') {
-                        await saveAllDataToSheets();
-                    } else if (typeof saveAllData === 'function') {
-                        await saveAllData();
-                    }
-                } catch(err) {
-                    console.error('Save failed:', err);
-                }
-            }
-            window.__hasUnstoredChanges = false;
-            // เปิด modal โครงการใหม่
+        function showNewProjectModal() {
             document.getElementById('newProjectModal').classList.remove('hidden');
             document.getElementById('newProjectModal').classList.add('flex');
-        });
-        return;
-    }
-    // เดิม: เปิด modal โครงการใหม่
-    document.getElementById('newProjectModal').classList.remove('hidden');
-    document.getElementById('newProjectModal').classList.add('flex');
-}
-
+        }
 
         function hideNewProjectModal() {
             document.getElementById('newProjectModal').classList.add('hidden');
@@ -1033,7 +901,7 @@ function showNewProjectModal() {
         async function showDashboardModal() {
             // ตรวจสอบว่ามีข้อมูลที่ยังไม่ได้บันทึกหรือไม่
             if (isProjectFinished && surveyPoints.length > 0) {
-                const saveResult = await Alert.fire({
+                const saveResult = await Swal.fire({
                     title: 'คุณยังไม่ได้ทำการบันทึก',
                     text: 'ต้องการบันทึกหรือไม่?',
                     icon: 'question',
@@ -1051,7 +919,7 @@ function showNewProjectModal() {
                         document.getElementById('dashboardFullscreen').classList.remove('hidden');
                         await loadDashboardData();
                     } catch (error) {
-                        Alert.fire({
+                        Swal.fire({
                             title: 'เกิดข้อผิดพลาด',
                             text: 'ไม่สามารถบันทึกข้อมูลได้',
                             icon: 'error',
@@ -1081,7 +949,7 @@ function showNewProjectModal() {
             const project = document.getElementById('projectName').value;
             
             if (!surveyor || !project) {
-                Alert.fire({
+                Swal.fire({
                     title: 'กรุณากรอกข้อมูล',
                     text: 'กรุณาเลือกผู้สำรวจและกรอกชื่อโครงการ',
                     icon: 'warning',
@@ -1102,7 +970,7 @@ function showNewProjectModal() {
             
             hideNewProjectModal();
             
-            Alert.fire({
+            Swal.fire({
                 title: 'เริ่มโครงการแล้ว!',
                 text: 'คุณสามารถเริ่มปักหมุดจุดสำรวจได้แล้ว',
                 icon: 'success',
@@ -1112,65 +980,67 @@ function showNewProjectModal() {
             });
         }
 
-        function getCurrentLocation() {  if (window.__followUser && typeof window.__followUser.set==='function') window.__followUser.set(true);
-
-  if (!navigator.geolocation) {
-    return Alert.fire({
-      title: 'ไม่รองรับ GPS',
-      text: 'เบราว์เซอร์นี้ไม่รองรับการหาตำแหน่ง',
-      icon: 'error'
-    });
-  }
-
-  // แสดงโหลดแบบผูก state ของตัวเอง
-  let __geoLoading = true;
-  Alert.fire({
-    title: 'กำลังค้นหาตำแหน่ง...',
-    allowOutsideClick: false,
-    didOpen: () => Swal.showLoading()
-  });
-
-  try {
-    if (typeof watchId !== 'undefined' && watchId) {
-      navigator.geolocation.clearWatch(watchId);
-    }
-  } catch (e) {}
-
-  watchId = navigator.geolocation.watchPosition(
-    (pos) => {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-
-      try {
-        if (typeof updateCurrentLocationMarker === 'function') {
-          updateCurrentLocationMarker(lat, lng);
+        function getCurrentLocation() {
+            if (navigator.geolocation) {
+                Swal.fire({
+                    title: 'กำลังค้นหาตำแหน่ง...',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+                
+                // หยุดการติดตามเก่าถ้ามี
+                if (watchId) {
+                    navigator.geolocation.clearWatch(watchId);
+                }
+                
+                // เริ่มติดตามตำแหน่ง
+                watchId = navigator.geolocation.watchPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        console.log('Location updated:', lat, lng);
+                        
+                        // อัปเดตตำแหน่งปัจจุบัน
+                        updateCurrentLocationMarker(lat, lng);
+                        
+                        // ย้ายแผนที่ไปยังตำแหน่งปัจจุบันครั้งแรก
+                        if (!currentLocationMarker) {
+                            map.setView([lat, lng], 16);
+                        }
+                        
+                        Swal.close();
+                    },
+                    (error) => {
+                        console.error('Geolocation error:', error);
+                        Swal.close();
+                        Swal.fire({
+                            title: 'ไม่สามารถหาตำแหน่งได้',
+                            text: 'กรุณาเปิด GPS และอนุญาตการเข้าถึงตำแหน่ง',
+                            icon: 'error',
+                            confirmButtonText: 'ตกลง',
+                            allowOutsideClick: false,
+                            allowEscapeKey: false
+                        });
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 100000,
+                        maximumAge: 5000
+                    }
+                );
+            } else {
+                Swal.fire({
+                    title: 'ไม่รองรับ GPS',
+                    text: 'เบราว์เซอร์นี้ไม่รองรับการหาตำแหน่ง',
+                    icon: 'error',
+                    confirmButtonText: 'ตกลง',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false
+                });
+            }
         }
-        if (typeof map !== 'undefined' && map && (!window.currentLocationMarker || !map.getBounds().contains([lat,lng]))) {
-          if (!window.__followUser || window.__followUser.get()) { if ((!window.__userInteracting) && (!window.__followUser || window.__followUser.get())) { if ((!window.__antiRecenter || !window.__antiRecenter.isBlocked()) && (!window.__followUser || window.__followUser.get())) { if ((!window.__antiRecenter || !window.__antiRecenter.isBlocked()) && (!window.__followUser || window.__followUser.get())) { if (typeof window.__gpsCenterGuard==='function'){ window.__gpsCenterGuard(lat,lng,16); } } }; } }
-        }
-      } catch (e) { console.warn(e); }
-
-      // ปิดเฉพาะ "loading" ของเราเท่านั้น
-      if (__geoLoading && Swal.isVisible() && document.querySelector('.swal2-loader')) {
-        Swal.close();
-        __geoLoading = false;
-      }
-    },
-    (err) => {
-      if (__geoLoading && Swal.isVisible() && document.querySelector('.swal2-loader')) {
-        Swal.close();
-      }
-      Alert.fire({
-        title: 'ไม่สามารถหาตำแหน่งได้',
-        text: 'กรุณาเปิด GPS และอนุญาตการเข้าถึงตำแหน่ง',
-        icon: 'error'
-      });
-    },
-    { enableHighAccuracy: true, timeout: 100000, maximumAge: 5000 }
-  );
-}
-
-
         
         function updateCurrentLocationMarker(lat, lng) {
             // ลบ marker เก่า
@@ -1213,7 +1083,7 @@ function showNewProjectModal() {
 
         async function confirmAddPoint() {
             if (!currentSurveyor || !currentProject) {
-                Alert.fire({
+                Swal.fire({
                     title: 'กรุณาเริ่มโครงการ',
                     text: 'กรุณาเริ่มโครงการใหม่ก่อนปักหมุด',
                     icon: 'warning',
@@ -1223,7 +1093,7 @@ function showNewProjectModal() {
                 return;
             }
             
-            const result = await Alert.fire({
+            const result = await Swal.fire({
                 title: 'ยืนยันการปักหมุด',
                 text: `ต้องการปักหมุดจุดที่ ${currentPointNumber} ใช่หรือไม่?`,
                 icon: 'question',
@@ -1241,7 +1111,7 @@ function showNewProjectModal() {
 
         async function confirmAddPointAtLocation(latlng) {
             if (!currentSurveyor || !currentProject) {
-                Alert.fire({
+                Swal.fire({
                     title: 'กรุณาเริ่มโครงการ',
                     text: 'กรุณาเริ่มโครงการใหม่ก่อนปักหมุด',
                     icon: 'warning',
@@ -1253,7 +1123,7 @@ function showNewProjectModal() {
             
             // ตรวจสอบว่าโครงการเสร็จสิ้นแล้วหรือไม่
             if (isProjectFinished) {
-                const continueResult = await Alert.fire({
+                const continueResult = await Swal.fire({
                     title: 'สำรวจต่อหรือไม่?',
                     text: 'คุณได้เสร็จสิ้นการสำรวจแล้ว ต้องการสำรวจต่อใช่หรือไม่?',
                     icon: 'question',
@@ -1278,7 +1148,7 @@ function showNewProjectModal() {
                 }
             }
             
-            const result = await Alert.fire({
+            const result = await Swal.fire({
                 title: 'ยืนยันการปักหมุด',
                 text: `ต้องการปักหมุดจุดที่ ${currentPointNumber} ที่ตำแหน่งนี้ใช่หรือไม่?`,
                 icon: 'question',
@@ -1336,7 +1206,7 @@ function showNewProjectModal() {
             
             const poleType = document.getElementById('poleType').value;
             if (!poleType) {
-                Alert.fire({
+                Swal.fire({
                     title: 'กรุณากรอกข้อมูล',
                     text: 'กรุณาเลือกประเภทเสา',
                     icon: 'warning',
@@ -1359,16 +1229,18 @@ function showNewProjectModal() {
                 hidePointModal();
                 hideLoadingOverlay();
                 
-                Alert.fire({
+                Swal.fire({
                     title: 'เพิ่มจุดสำเร็จ!',
                     text: 'กรุณาเลือกตำแหน่งจุดถัดไปบนแผนที่',
                     icon: 'success',
                     confirmButtonText: 'ตกลง',
                     allowOutsideClick: false,
-                    allowEscapeKey: false,});
+                    allowEscapeKey: false,
+                    timer: 30000
+                });
             } catch (error) {
                 hideLoadingOverlay();
-                Alert.fire({
+                Swal.fire({
                     title: 'เกิดข้อผิดพลาด',
                     text: 'ไม่สามารถบันทึกข้อมูลได้',
                     icon: 'error',
@@ -1406,7 +1278,7 @@ function showNewProjectModal() {
         async function finishPoint() {
             const poleType = document.getElementById('poleType').value;
             if (!poleType) {
-                Alert.fire({
+                Swal.fire({
                     title: 'กรุณากรอกข้อมูล',
                     text: 'กรุณาเลือกประเภทเสา',
                     icon: 'warning',
@@ -1428,7 +1300,6 @@ function showNewProjectModal() {
                 
                 // ตั้งสถานะว่าโครงการเสร็จสิ้นแล้ว
                 isProjectFinished = true;
-                window.__hasUnstoredChanges = true;
                 
                 // ลบเส้นประวัดระยะทางและ event listeners ทันที
                 clearAllDistanceElements();
@@ -1438,7 +1309,7 @@ function showNewProjectModal() {
                 hideLoadingOverlay();
                 
                 // แสดงข้อความแจ้งเตือนให้ผู้ใช้บันทึกข้อมูล
-                Alert.fire({
+                Swal.fire({
                     title: 'เสร็จสิ้นการปักหมุด!',
                     text: 'กรุณากดปุ่ม "บันทึก" ที่แถบเมนูเพื่อบันทึกข้อมูลทั้งหมด',
                     icon: 'success',
@@ -1450,7 +1321,7 @@ function showNewProjectModal() {
             } catch (error) {
                 console.error('Error finishing point:', error);
                 hideLoadingOverlay();
-                Alert.fire({
+                Swal.fire({
                     title: 'เกิดข้อผิดพลาด',
                     text: 'ไม่สามารถบันทึกข้อมูลได้: ' + error.message,
                     icon: 'error',
@@ -1517,7 +1388,7 @@ function showNewProjectModal() {
         }
         
         function showProjectCompletionOptions() {
-            Alert.fire({
+            Swal.fire({
                 title: 'โครงการเสร็จสิ้น!',
                 text: 'คุณต้องการทำอะไรกับข้อมูลที่สำรวจแล้ว?',
                 icon: 'success',
@@ -1542,11 +1413,11 @@ function showNewProjectModal() {
         
         function confirmClearDataFromNav() {
             if (surveyPoints.length === 0) {
-                Alert.fire('ไม่มีข้อมูล', 'ไม่มีข้อมูลให้ล้าง', 'info');
+                Swal.fire('ไม่มีข้อมูล', 'ไม่มีข้อมูลให้ล้าง', 'info');
                 return;
             }
             
-            Alert.fire({
+            Swal.fire({
                 title: 'ยืนยันการล้างข้อมูล',
                 text: `คุณแน่ใจหรือไม่ที่จะล้างข้อมูลทั้งหมด ${surveyPoints.length} จุดในโครงการนี้?`,
                 icon: 'warning',
@@ -1559,11 +1430,12 @@ function showNewProjectModal() {
             }).then((result) => {
                 if (result.isConfirmed) {
                     resetSurveyData();
-                    Alert.fire({
+                    Swal.fire({
                         title: 'ล้างข้อมูลแล้ว!',
                         text: 'ข้อมูลโครงการถูกล้างเรียบร้อยแล้ว',
                         icon: 'success',
-                        showConfirmButton: true,
+                        timer: 20000,
+                        showConfirmButton: false,
                         allowOutsideClick: false,
                         allowEscapeKey: false
                     });
@@ -1572,7 +1444,7 @@ function showNewProjectModal() {
         }
         
         function confirmClearData() {
-            Alert.fire({
+            Swal.fire({
                 title: 'ยืนยันการล้างข้อมูล',
                 text: 'คุณแน่ใจหรือไม่ที่จะล้างข้อมูลทั้งหมดในโครงการนี้?',
                 icon: 'warning',
@@ -1585,11 +1457,12 @@ function showNewProjectModal() {
             }).then((result) => {
                 if (result.isConfirmed) {
                     resetSurveyData();
-                    Alert.fire({
+                    Swal.fire({
                         title: 'ล้างข้อมูลแล้ว!',
                         text: 'ข้อมูลโครงการถูกล้างเรียบร้อยแล้ว',
                         icon: 'success',
-                        showConfirmButton: true,
+                        timer: 20000,
+                        showConfirmButton: false,
                         allowOutsideClick: false,
                         allowEscapeKey: false
                     });
@@ -1644,9 +1517,6 @@ function showNewProjectModal() {
             const marker = L.marker([lat, lng], { icon: customIcon }).addTo(map);
             marker.bindPopup(`จุดที่ ${number}<br>พิกัด: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
             markers.push(marker);
-            // แจ้งให้ระบบวัดระยะรู้ว่าพินล่าสุดอยู่ที่ไหน (สำหรับเส้นประ + ตัวเลขแบบ realtime ระหว่างเลื่อนหา)
-            try { if (typeof window.registerPin === 'function') window.registerPin(lat, lng); } catch (e) { console.warn(e); }
-
             
             const points = surveyPoints.map(point => [point.lat, point.lng]);
             polyline.setLatLngs(points);
@@ -1720,73 +1590,45 @@ function showNewProjectModal() {
             document.getElementById('totalPoints').textContent = surveyPoints.length;
         }
 
-        
-// === Helpers: normalize Google Drive URL to a direct-view link ===
-function extractDriveId(url='') {
-  const patterns = [
-    /\/file\/d\/([a-zA-Z0-9_-]+)/,
-    /[?&]id=([a-zA-Z0-9_-]+)/,
-    /\/d\/([a-zA-Z0-9_-]+)\//,
-    /\/d\/([a-zA-Z0-9_-]+)$/
-  ];
-  for (const re of patterns) {
-    const m = url && url.match(re);
-    if (m && m[1]) return m[1];
-  }
-  return '';
-}
-function normalizeDriveUrl(url = '') {
-  // ถ้าเป็นลิงก์ viewer ของ Drive อยู่แล้ว (เช่น PDF) ให้คงไว้
-  if (url.includes('drive.google.com/file/d/')) return url;
-
-  // กรณีอื่น (รูปภาพที่เป็น uc?id= หรือ d/ID) -> แปลงเป็น lh3 ตามเดิม
-  const idMatch =
-    url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
-    url.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
-    url.match(/\/d\/([a-zA-Z0-9_-]+)\//) ||
-    url.match(/\/d\/([a-zA-Z0-9_-]+)$/);
-  const id = idMatch ? idMatch[1] : '';
-  return id ? `https://lh3.googleusercontent.com/d/${id}` : url;
-}
-async function uploadFile(file) {
-  if (!file) return '';
-
-  try {
-    console.log('Uploading file:', file.name, 'Size:', file.size);
-
-    const base64 = await fileToBase64(file);
-
-    const params = new URLSearchParams();
-    params.append('action', 'uploadFile');
-    params.append('fileName', file.name);
-    params.append('mimeType', file.type || '');     // << ส่งชนิดไฟล์จริง
-    params.append('fileData', base64);
-    params.append('folderId', FOLDER_ID);
-    params.append('surveyor', currentSurveyor);
-
-    const response = await fetch(SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: params.toString()
-    });
-
-    const result = await response.json();
-    console.log('Upload result:', result);
-
-    if (result.success) {
-      // ใช้ URL ที่ GAS คืนมาโดยตรง:
-      // - PDF  => https://drive.google.com/file/d/<ID>/view?... (เปิดหลายหน้า)
-      // - รูป  => https://lh3.googleusercontent.com/d/<ID>
-      return result.url;
-    } else {
-      console.error('Upload failed:', result.error);
-      return '';
-    }
-  } catch (error) {
-    console.error('Error uploading file:', error);
-    return '';
-  }
-}
+        async function uploadFile(file) {
+            if (!file) return '';
+            
+            try {
+                console.log('Uploading file:', file.name, 'Size:', file.size);
+                
+                const base64 = await fileToBase64(file);
+                console.log('File converted to base64, length:', base64.length);
+                
+                const params = new URLSearchParams();
+                params.append('action', 'uploadFile');
+                params.append('fileName', file.name);
+                params.append('fileData', base64);
+                params.append('folderId', FOLDER_ID);
+                params.append('surveyor', currentSurveyor);
+                
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: params.toString()
+                });
+                
+                const result = await response.json();
+                console.log('Upload result:', result);
+                
+                if (result.success) {
+                    console.log('File uploaded successfully:', result.url);
+                    return result.url;
+                } else {
+                    console.error('Upload failed:', result.error);
+                    return '';
+                }
+            } catch (error) {
+                console.error('Error uploading file:', error);
+                return '';
+            }
+        }
 
         function fileToBase64(file) {
             return new Promise((resolve, reject) => {
@@ -1903,7 +1745,7 @@ async function uploadFile(file) {
                     localStorage.setItem('surveyData', JSON.stringify(existingData));
                     
                     // แจ้งเตือนผู้ใช้
-                    Alert.fire({
+                    Swal.fire({
                         title: '💾 บันทึกในเครื่องแล้ว',
                         html: `
                             <p>ไม่สามารถเชื่อมต่อ Google Sheets ได้</p>
@@ -1992,11 +1834,11 @@ async function uploadFile(file) {
 
         async function saveAllData() {
             if (surveyPoints.length === 0) {
-                Alert.fire('ไม่มีข้อมูล', 'กรุณาเพิ่มจุดสำรวจก่อนบันทึก', 'warning');
+                Swal.fire('ไม่มีข้อมูล', 'กรุณาเพิ่มจุดสำรวจก่อนบันทึก', 'warning');
                 return;
             }
             
-            Alert.fire({
+            Swal.fire({
                 title: 'กำลังบันทึกข้อมูล...',
                 allowOutsideClick: false,
                 didOpen: () => {
@@ -2007,18 +1849,19 @@ async function uploadFile(file) {
             try {
                 await saveAllDataToSheets();
                 
-                Alert.fire({
+                Swal.fire({
                     title: 'บันทึกสำเร็จ!',
                     text: `บันทึกข้อมูล ${surveyPoints.length} จุดเรียบร้อยแล้ว`,
                     icon: 'success',
-                    showConfirmButton: true
+                    timer: 30000,
+                    showConfirmButton: false
                 });
                 
                 resetSurveyData();
                 
             } catch (error) {
                 console.error('Error saving data:', error);
-                Alert.fire('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้: ' + error.message, 'error');
+                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้: ' + error.message, 'error');
             }
         }
 
@@ -2062,7 +1905,10 @@ async function uploadFile(file) {
                     surveyor: currentSurveyor
                 });
                 
-                const response = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: params
+                });
                 
                 const result = await response.json();
                 return result.success ? result.url : '';
@@ -2100,7 +1946,7 @@ async function uploadFile(file) {
 
         async function loadDashboardData() {
             try {
-                Alert.fire({
+                Swal.fire({
                     title: 'กำลังโหลดข้อมูล...',
                     allowOutsideClick: false,
                     didOpen: () => {
@@ -2148,7 +1994,7 @@ async function uploadFile(file) {
                                 point.wireSupport || '',    // 8: wireSupport
                                 point.notes || '',          // 9: notes
                                 point.timestamp,            // 10: timestamp
-                                    project.saved ? 'เขียนผังแล้ว' : 'ยังไม่เขียนผัง', // 11: status
+                                project.saved ? 'เขียนผังแล้ว' : 'ยังไม่เขียนผัง', // 11: status
                                 '',                         // 12: mapImageUrl
                                 point.connectionImageUrl || '', // 13: connectionImageUrl
                                 point.documentUrl || '',    // 14: documentUrl
@@ -2175,7 +2021,7 @@ async function uploadFile(file) {
                 if (data && data.length > 0 && !data.some(row => row[11] === 'เขียนผังแล้ว')) {
                     const localDataCount = JSON.parse(localStorage.getItem('surveyData') || '[]').length;
                     if (localDataCount > 0) {
-                        Alert.fire({
+                        Swal.fire({
                             title: '📱 ข้อมูลจากเครื่อง',
                             html: `
                                 <p>แสดงข้อมูลที่บันทึกในเครื่อง</p>
@@ -2187,7 +2033,9 @@ async function uploadFile(file) {
                                 </div>
                             `,
                             icon: 'info',
-                            confirmButtonText: 'ตกลง',});
+                            confirmButtonText: 'ตกลง',
+                            timer: 40000
+                        });
                     }
                 }
                 
@@ -2218,7 +2066,7 @@ async function uploadFile(file) {
                         filteredProjectData = [...allProjectData];
                         updateDashboardDisplay(allProjectData);
                         
-                        Alert.fire({
+                        Swal.fire({
                             title: 'โหลดข้อมูลสำรอง',
                             text: 'แสดงข้อมูลที่บันทึกในเครื่อง',
                             icon: 'info',
@@ -2741,7 +2589,7 @@ async function uploadFile(file) {
                 
                 img.onerror = function() {
                     console.error('Failed to load preview image:', imageUrl);
-                    this.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1zbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2Y3ZjdmNyIvPjx0ZXh0IHg9IjIwMCIgeT0iMTUwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IiM5OTk5OTkiPuC5hOC4oeC5iOC4quC4suC4oeC4suC4o+C4luC5guC4q+C4peC4lOC4oOC4suC4nuC5hOC4lOC5iDwvdGV4dD48L3N2Zz4=';
+                    this.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2Y3ZjdmNyIvPjx0ZXh0IHg9IjIwMCIgeT0iMTUwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IiM5OTk5OTkiPuC5hOC4oeC5iOC4quC4suC4oeC4suC4o+C4luC5guC4q+C4peC4lOC4oOC4suC4nuC5hOC4lOC5iDwvdGV4dD48L3N2Zz4=';
                     this.alt = 'ไม่สามารถโหลดภาพได้';
                 };
                 
@@ -2784,7 +2632,7 @@ async function uploadFile(file) {
                 
             } catch (error) {
                 console.error('Error in showImagePreview:', error);
-                Alert.fire('เกิดข้อผิดพลาด', 'ไม่สามารถแสดงภาพได้', 'error');
+                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถแสดงภาพได้', 'error');
             }
         }
         
@@ -2997,7 +2845,10 @@ async function uploadFile(file) {
                         status: status
                     });
                     
-                    const response = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
+                    const response = await fetch(SCRIPT_URL, {
+                        method: 'POST',
+                        body: params
+                    });
                     
                     const result = await response.json();
                     if (result.success) {
@@ -3031,17 +2882,18 @@ async function uploadFile(file) {
                     'อัปเดตสถานะโครงการเรียบร้อยแล้ว' : 
                     'อัปเดตสถานะในเครื่องเรียบร้อยแล้ว (ยังไม่ได้ซิงค์กับ Google Sheets)';
                 
-                Alert.fire({
+                Swal.fire({
                     title: 'อัปเดตสำเร็จ!',
                     text: message,
                     icon: 'success',
-                    showConfirmButton: true
+                    timer: 20000,
+                    showConfirmButton: false
                 });
                 
             } catch (error) {
                 console.error('Error updating status:', error);
                 hideLoadingOverlay();
-                Alert.fire('เกิดข้อผิดพลาด', 'ไม่สามารถอัปเดตสถานะได้: ' + error.message, 'error');
+                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถอัปเดตสถานะได้: ' + error.message, 'error');
             }
         }
 
@@ -3050,11 +2902,11 @@ async function uploadFile(file) {
                 const localData = JSON.parse(localStorage.getItem('surveyData') || '[]');
                 
                 if (localData.length === 0) {
-                    Alert.fire('ไม่มีข้อมูล', 'ไม่มีข้อมูลในเครื่องให้ส่งออก', 'info');
+                    Swal.fire('ไม่มีข้อมูล', 'ไม่มีข้อมูลในเครื่องให้ส่งออก', 'info');
                     return;
                 }
                 
-                const result = await Alert.fire({
+                const result = await Swal.fire({
                     title: 'ส่งออกข้อมูล',
                     html: `
                         <p>พบข้อมูล ${localData.length} โครงการในเครื่อง</p>
@@ -3080,7 +2932,7 @@ async function uploadFile(file) {
                 
             } catch (error) {
                 console.error('Error exporting data:', error);
-                Alert.fire('เกิดข้อผิดพลาด', 'ไม่สามารถส่งออกข้อมูลได้', 'error');
+                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถส่งออกข้อมูลได้', 'error');
             }
         }
         
@@ -3096,11 +2948,12 @@ async function uploadFile(file) {
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
             
-            Alert.fire({
+            Swal.fire({
                 title: 'ส่งออกสำเร็จ!',
                 text: 'ไฟล์ JSON ถูกดาวน์โหลดเรียบร้อยแล้ว',
                 icon: 'success',
-                showConfirmButton: true
+                timer: 20000,
+                showConfirmButton: false
             });
         }
         
@@ -3139,11 +2992,12 @@ async function uploadFile(file) {
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
             
-            Alert.fire({
+            Swal.fire({
                 title: 'ส่งออกสำเร็จ!',
                 text: 'ไฟล์ CSV ถูกดาวน์โหลดเรียบร้อยแล้ว',
                 icon: 'success',
-                showConfirmButton: true
+                timer: 20000,
+                showConfirmButton: false
             });
         }
 
@@ -3169,11 +3023,12 @@ async function uploadFile(file) {
                         
                         hideLoadingOverlay();
                         
-                        Alert.fire({
+                        Swal.fire({
                             title: 'ดาวน์โหลดสำเร็จ!',
                             text: 'ไฟล์ KML ถูกดาวน์โหลดเรียบร้อยแล้ว',
                             icon: 'success',
-                            showConfirmButton: true
+                            timer: 20000,
+                            showConfirmButton: false
                         });
                         return;
                     }
@@ -3203,17 +3058,18 @@ async function uploadFile(file) {
                 
                 hideLoadingOverlay();
                 
-                Alert.fire({
+                Swal.fire({
                     title: 'ดาวน์โหลดสำเร็จ!',
                     text: 'ไฟล์ KML ถูกสร้างเรียบร้อยแล้ว',
                     icon: 'success',
-                    showConfirmButton: true
+                    timer: 20000,
+                    showConfirmButton: false
                 });
                 
             } catch (error) {
                 console.error('Error downloading KML:', error);
                 hideLoadingOverlay();
-                Alert.fire('เกิดข้อผิดพลาด', 'ไม่สามารถดาวน์โหลดไฟล์ KML ได้: ' + error.message, 'error');
+                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถดาวน์โหลดไฟล์ KML ได้: ' + error.message, 'error');
             }
         }
         
@@ -3361,467 +3217,5 @@ async function uploadFile(file) {
             return kml;
         }
     </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9909fe9ea5e7895a',t:'MTc2MDgxMTA0OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
-<script>
-// === Long-press Measure-on-Drag for mobile & desktop (auto-injected) ===
-(function(){
-  let readyTries = 0;
-  function ready(){
-    if (window.L && window.map && typeof map.on === 'function') {
-      attachMeasureHandlers();
-    } else if (readyTries++ < 40) {
-      setTimeout(ready, 250);
-    }
-  }
-  function formatDistance(m){
-    if (m >= 1000) return (m/1000).toFixed(2) + ' กม.';
-    return Math.round(m) + ' ม.';
-  }
-  function attachMeasureHandlers(){
-    let measure = {
-      active: false,
-      start: null,
-      line: null,
-      tip: null,
-      pressTimer: null
-    };
-
-    const startMeasure = (latlng) => {
-      measure.active = true;
-      measure.start = latlng;
-      if (measure.line) { map.removeLayer(measure.line); measure.line = null; }
-      if (measure.tip)  { map.removeLayer(measure.tip);  measure.tip  = null; }
-
-      measure.line = L.polyline([latlng, latlng], {
-        color: '#1976D2',
-        weight: 3,
-        opacity: 0.9,
-        dashArray: '8,8'
-      }).addTo(map);
-
-      measure.tip = L.tooltip({
-        permanent: true,
-        direction: 'center',
-        className: 'measure-label'
-      })
-      .setLatLng(latlng)
-      .setContent('0 ม.')
-      .addTo(map);
-
-      // ปิด drag map ขณะวัด (กันการชนกับ pan)
-      if (map.dragging && map.dragging.disable) map.dragging.disable();
-    };
-
-    const updateMeasure = (latlng) => {
-      if (!measure.active || !measure.start || !measure.line) return;
-      measure.line.setLatLngs([measure.start, latlng]);
-      const dist = map.distance(measure.start, latlng);
-      const mid = L.latLng( (measure.start.lat + latlng.lat)/2, (measure.start.lng + latlng.lng)/2 );
-      if (measure.tip) {
-        measure.tip.setLatLng(mid).setContent(formatDistance(dist));
-      }
-    };
-
-    const endMeasure = () => {
-      if (!measure.active) return;
-      measure.active = false;
-      measure.start = null;
-      // คงแสดงผลไว้สั้น ๆ แล้วลบทิ้ง หรือจะลบทันที (เลือกทันทีเพื่อลดรกหน้าจอ)
-      if (measure.line) { map.removeLayer(measure.line); measure.line = null; }
-      if (measure.tip)  { map.removeLayer(measure.tip);  measure.tip  = null; }
-      if (map.dragging && map.dragging.enable) map.dragging.enable();
-      clearTimeout(measure.pressTimer); measure.pressTimer = null;
-    };
-
-    // เริ่มด้วย "กดค้าง" ~500ms เพื่อเข้าโหมดวัด ไม่ชนกับการลากแผนที่
-    const PRESS_MS = 500;
-
-    map.on('touchstart mousedown', function(e){
-      if (measure.active) return;
-      clearTimeout(measure.pressTimer);
-      measure.pressTimer = setTimeout(() => startMeasure(e.latlng), PRESS_MS);
-    });
-
-    map.on('touchmove mousemove', function(e){
-      if (measure.active) {
-        updateMeasure(e.latlng);
-      }
-    });
-
-    map.on('touchend mouseup', function(){
-      // ถ้านับเวลาไม่ถึงก็ถือว่าเป็นแค่แตะ/ลากธรรมดา
-      clearTimeout(measure.pressTimer);
-      if (measure.active) endMeasure();
-    });
-
-    // ป้องกันกรณีผู้ใช้กดยกนิ้วนอกจอหรือเปลี่ยนแท็บ
-    document.addEventListener('visibilitychange', () => { if (document.hidden) endMeasure(); });
-    window.addEventListener('blur', endMeasure);
-  }
-  ready();
-})();
-</script>
-
-<script>
-// === Follow Me Toggle Control (auto-injected) ===
-(function(){
-  let followUser = true;
-  function updateBtn(btn){
-    if (!btn) return;
-    btn.innerHTML = followUser ? '📍 ติดตามตำแหน่ง: เปิด' : '📍 ติดตามตำแหน่ง: ปิด';
-    btn.classList.toggle('follow-off', !followUser);
-  }
-  function attach(){
-    if (!window.L || !window.map || typeof map.addControl !== 'function') return false;
-    if (map.__followControlAttached) return true;
-
-    const FollowControl = L.Control.extend({
-      onAdd: function(){
-        const btn = L.DomUtil.create('button', 'leaflet-bar follow-control');
-        btn.type = 'button';
-        btn.style.padding = '6px 8px';
-        btn.style.minWidth = '140px';
-        btn.style.fontSize = '12px';
-        btn.style.cursor = 'pointer';
-        btn.style.background = '#fff';
-        btn.style.border = '1px solid #ccc';
-        btn.style.borderRadius = '6px';
-        btn.style.boxShadow = '0 2px 6px rgba(0,0,0,.1)';
-        updateBtn(btn);
-        L.DomEvent.on(btn, 'click', function(e){
-          L.DomEvent.stopPropagation(e);
-          followUser = !followUser;
-          updateBtn(btn);
-        });
-        return btn;
-      },
-      onRemove: function(){}
-    });
-
-    const ctrl = new FollowControl({ position: 'topleft' });
-    map.addControl(ctrl);
-
-    // Disable follow on any user interaction
-    const stopFollow = () => { followUser = false; updateBtn(document.querySelector('.follow-control')); };
-    map.on('dragstart zoomstart touchstart', stopFollow);
-
-    // expose getter/setter for other parts
-    window.__followUser = {
-      get: () => followUser,
-      set: (v) => { followUser = !!v; updateBtn(document.querySelector('.follow-control')); }
-    };
-
-    ma
-<script>
-// === Drag-to-measure: show dashed line from drag start center to current center (auto-injected) ===
-(function(){
-  function attach(){
-    if (!window.map || !window.L || !map.on) return false;
-    if (map.__dragMeasureAttached) return true;
-    let startCenter = null;
-    let line = null;
-    let label = null;
-
-    function fmt(m){ return m >= 1000 ? (m/1000).toFixed(2)+' กม.' : Math.round(m)+' ม.'; }
-
-    map.on('dragstart', function(){
-      startCenter = map.getCenter();
-      // create line & label
-      line = L.polyline([startCenter, startCenter], {
-        color: '#1976D2',
-        weight: 3,
-        opacity: 0.9,
-        dashArray: '8,8'
-      }).addTo(map);
-      label = L.tooltip({ permanent: true, direction: 'center', className: 'measure-label' })
-        .setLatLng(startCenter)
-        .setContent('0 ม.')
-        .addTo(map);
-    });
-
-    map.on('move', function(){
-      if (!startCenter || !line) return;
-      const cur = map.getCenter();
-      line.setLatLngs([startCenter, cur]);
-      const d = map.distance(startCenter, cur);
-      const mid = L.latLng((startCenter.lat+cur.lat)/2, (startCenter.lng+cur.lng)/2);
-      if (label) label.setLatLng(mid).setContent(fmt(d));
-    });
-
-    function cleanup(){
-      if (line){ map.removeLayer(line); line = null; }
-      if (label){ map.removeLayer(label); label = null; }
-      startCenter = null;
-    }
-    map.on('dragend', cleanup);
-    map.on('zoomstart', cleanup);
-    document.addEventListener('visibilitychange', ()=>{ if (document.hidden) cleanup(); });
-
-    map.__dragMeasureAttached = true;
-    return true;
-  }
-  let tries=0;
-  (function wait(){ if (!attach() && tries++ < 60) setTimeout(wait, 300); })();
-})();
-</script>
-<style>
-/* Ensure tooltip is readable on map */
-.leaflet-tooltip.measure-label{
-  background: rgba(0,0,0,0.8);
-  color: #fff;
-  border: 0;
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-}
-</style>
-
-<style>
-.follow-control.follow-off{ opacity: .85; }
-</style>
-
-<script>
-// === Anti-recenter on user interaction (auto-injected) ===
-(function(){
-  let blockUntil = 0;
-  function setBlock(ms){ blockUntil = Date.now() + ms; }
-  function isBlocked(){ return Date.now() < blockUntil; }
-
-  function attach(){
-    if (!window.map || !window.L || !map.on) return false;
-    const stopFollow = () => {
-      if (window.__followUser && typeof window.__followUser.set === 'function') {
-        window.__followUser.set(false);
-      }
-      setBlock(8000); // block auto-centering for 8s after manual pan/zoom
-      window.__userInteracting = true;
-    };
-    const endInteract = () => { window.__userInteracting = false; };
-
-    map.on('dragstart zoomstart touchstart movestart', stopFollow);
-    map.on('dragend zoomend touchend moveend', endInteract);
-
-    // Expose guard for GPS callbacks
-    window.__antiRecenter = { isBlocked };
-
-    return true;
-  }
-  let tries = 0;
-  (function wait(){ if (!attach() && tries++ < 60) setTimeout(wait, 300); })();
-})();
-</script>
-
-
-<script id="mobile-fixes-js">
-// === Mobile Map Professional Fixes v2 (strict follow & live measure) ===
-(function(){
-  function attach(){
-    if (!window.L || !window.map || typeof map.on !== 'function') return false;
-
-    // 0) Ensure dragging enabled
-    try { if (map.dragging && map.dragging.enable) map.dragging.enable(); } catch(e){}
-
-    // 1) Strict follow mode OFF by default
-    if (!window.__followUser) {
-      let _f = false;
-      window.__followUser = { get: () => _f, set: v => { _f = !!v; } };
-    } else {
-      try { window.__followUser.set(false); } catch(e){}
-    }
-
-    // 2) Intercept ALL common centering methods; honor follow OR explicit whitelist
-    ['setView','panTo','flyTo','fitBounds','flyToBounds'].forEach(fn => {
-      if (typeof map[fn] === 'function' && !map['__wrapped_'+fn]) {
-        const orig = map[fn].bind(map);
-        map[fn] = function(){
-          // Allow one-shot through (set by 📍 button)
-          if (this.__forceNextCenter === true) {
-            this.__forceNextCenter = false;
-            return orig.apply(this, arguments);
-          }
-          // Block programmatic centering if not following
-          try {
-            if (!window.__followUser.get()) {
-              return this;
-            }
-          } catch(e){}
-          return orig.apply(this, arguments);
-        };
-        map['__wrapped_'+fn] = true;
-      }
-    });
-
-    // Helper for GPS code (use this instead of calling setView directly)
-    window.__gpsCenterGuard = function(lat,lng,zoom){
-      if (window.__followUser.get()) {
-        map.setView([lat,lng], zoom != null ? zoom : map.getZoom());
-      }
-    };
-
-    // 3) Hook current location buttons: enable follow & allow one-shot center
-    function hookCurrentButtons(){
-      const buttons = Array.from(document.querySelectorAll('button, a, .leaflet-control a'));
-      buttons.forEach(el => {
-        if (el.__hookedCurrent) return;
-        const text = (el.textContent || '').trim();
-        // Match by text/icon; add more selectors if your button has a specific id/class
-        if (text.includes('ตำแหน่งปัจจุบัน') || text.includes('📍')) {
-          el.__hookedCurrent = true;
-          el.addEventListener('click', function(){
-            try { window.__followUser.set(true); } catch(e){}
-            if (map) map.__forceNextCenter = true;
-          }, { capture:true });
-        }
-      });
-    }
-    hookCurrentButtons();
-    const obs = new MutationObserver(hookCurrentButtons);
-    obs.observe(document.documentElement, { childList:true, subtree:true });
-
-    // 4) Any manual interaction turns follow OFF immediately
-    const stopFollow = () => { try { window.__followUser.set(false); } catch(e){} };
-    map.on('dragstart zoomstart touchstart movestart', stopFollow);
-
-    // 5) Tap-to-pin anywhere
-    if (!window.__tapToPinAttached) {
-      let seq = 1;
-      const nextNo = () => (typeof window.getNextPointNumber === 'function' ? window.getNextPointNumber() : seq++);
-      map.on('click', function(e){
-        const { lat, lng } = e.latlng;
-        if (typeof window.addPointAtLatLng === 'function') {
-          try { window.addPointAtLatLng(lat, lng, nextNo()); return; } catch(err){ console.warn(err); }
-        }
-        if (typeof window.confirmAddPointAtLocation === 'function') {
-          try { window.confirmAddPointAtLocation(lat, lng); return; } catch(err){ console.warn(err); }
-        }
-        const n = nextNo();
-        L.marker([lat,lng]).addTo(map).bindPopup('จุดที่ ' + n).openPopup();
-      });
-      window.__tapToPinAttached = true;
-    }
-
-    // 6) Live dashed line + distance while panning
-    if (!map.__dragMeasureAttached) {
-      let startCenter = null;
-      let line = null;
-      let label = null;
-      const fmt = (m) => m >= 1000 ? (m/1000).toFixed(2)+' กม.' : Math.round(m)+' ม.';
-
-      map.on('movestart', function(){
-        startCenter = map.getCenter();
-        if (line) { map.removeLayer(line); line = null; }
-        if (label){ map.removeLayer(label); label = null; }
-        line = L.polyline([startCenter, startCenter], {
-          color: '#1976D2',
-          weight: 3,
-          opacity: 0.95,
-          dashArray: '10,8'
-        }).addTo(map);
-        label = L.tooltip({
-          permanent: true,
-          direction: 'center',
-          className: 'measure-label'
-        }).setLatLng(startCenter).setContent('0 ม.').addTo(map);
-      });
-
-      map.on('move', function(){
-        if (!startCenter || !line) return;
-        const cur = map.getCenter();
-        line.setLatLngs([startCenter, cur]);
-        const d = map.distance(startCenter, cur);
-        const mid = L.latLng((startCenter.lat + cur.lat)/2, (startCenter.lng + cur.lng)/2);
-        if (label) label.setLatLng(mid).setContent(fmt(d));
-        try { const el = document.getElementById('lastDistance'); if (el) el.textContent = fmt(d); } catch(e){}
-      });
-
-      function cleanup(){
-        if (line) { map.removeLayer(line); line = null; }
-        if (label){ map.removeLayer(label); label = null; }
-        startCenter = null;
-      }
-      map.on('moveend', cleanup);
-      map.on('zoomstart', cleanup);
-      document.addEventListener('visibilitychange', ()=>{ if (document.hidden) cleanup(); });
-
-      map.__dragMeasureAttached = true;
-    }
-
-    return true;
-  }
-
-  let tries = 0;
-  (function wait(){ if (!attach() && tries++ < 100) setTimeout(wait, 250); })();
-})();
-</script>
-
-
-<script id="robust-locate-and-measure-fix">
-(function(){
-  // --- Robust current location handling ---
-  window.getCurrentLocation = (function(orig){
-    return function(){
-      if (!navigator.geolocation){
-        return Swal.fire({title:'ไม่รองรับ GPS', text:'เบราว์เซอร์นี้ไม่รองรับการหาตำแหน่ง', icon:'error'});
-      }
-      try { if (window.__followUser && typeof __followUser.set==='function') __followUser.set(true); } catch(e){}
-      if (window.map) map.__forceNextCenter = true;
-
-      let done = false;
-      const success = (pos)=>{
-        if (done) return; done = true;
-        const lat = pos.coords.latitude, lng = pos.coords.longitude;
-        try{
-          map.setView([lat, lng], 17);
-          L.circleMarker([lat,lng], {radius:6, color:'#1976D2', fillColor:'#1976D2', fillOpacity:.9})
-            .addTo(map).bindPopup('ตำแหน่งปัจจุบัน').openPopup();
-        }catch(e){ console.warn(e); }
-      };
-      const fail = (err)=>{
-        Swal.fire({title:'ไม่สามารถหาตำแหน่งได้', text:'กรุณาเปิด GPS และอนุญาตการเข้าถึงตำแหน่ง', icon:'error'});
-        console.warn(err);
-      };
-      navigator.geolocation.getCurrentPosition(success, ()=>{
-        let wid; const to=setTimeout(()=>{try{navigator.geolocation.clearWatch(wid);}catch(e){}; fail();},10000);
-        wid = navigator.geolocation.watchPosition(p=>{clearTimeout(to);success(p);navigator.geolocation.clearWatch(wid);},fail,{enableHighAccuracy:true,timeout:10000,maximumAge:0});
-      }, { enableHighAccuracy:true, timeout:15000, maximumAge:0 });
-    };
-  })(window.getCurrentLocation||function(){});
-
-  // --- Dashed line & distance display between last pin and center ---
-  function attachMeasure(){
-    if (!window.map || !window.L) return;
-    if (map.__measureAttached) return;
-    window.__lastPinLatLng = null;
-    window.registerPin = function(lat, lng){ window.__lastPinLatLng = L.latLng(lat, lng); };
-
-    let line=null,label=null;
-    const fmt=(m)=>m>=1000?(m/1000).toFixed(2)+' กม.':Math.round(m)+' ม.';
-
-    map.on('movestart', ()=>{
-      if(!window.__lastPinLatLng) return;
-      if(line){map.removeLayer(line);} if(label){map.removeLayer(label);}
-      line=L.polyline([window.__lastPinLatLng, window.__lastPinLatLng],{color:'#1976D2',weight:3,dashArray:'10,8',opacity:0.9}).addTo(map);
-      label=L.tooltip({permanent:true,direction:'center',className:'measure-label'}).setLatLng(window.__lastPinLatLng).setContent('0 ม.').addTo(map);
-    });
-
-    map.on('move', ()=>{
-      if(!window.__lastPinLatLng||!line||!label) return;
-      const cur=map.getCenter();
-      line.setLatLngs([window.__lastPinLatLng,cur]);
-      const d=map.distance(window.__lastPinLatLng,cur);
-      const mid=L.latLng((window.__lastPinLatLng.lat+cur.lat)/2,(window.__lastPinLatLng.lng+cur.lng)/2);
-      label.setLatLng(mid).setContent(fmt(d));
-      const el=document.getElementById('lastDistance')||document.getElementById('distanceText')||document.getElementById('totalDistance');
-      if(el) el.textContent=fmt(d);
-    });
-
-    map.on('moveend zoomstart', ()=>{ if(line){map.removeLayer(line);} if(label){map.removeLayer(label);} });
-    map.__measureAttached=true;
-  }
-  let tries=0;(function wait(){if(!attachMeasure()&&tries++<50)setTimeout(wait,250);})();
-})();
-</script>
-
-</body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9909fe9ea5e7895a',t:'MTc2MDgxMTA0OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
