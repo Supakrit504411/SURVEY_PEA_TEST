@@ -1171,10 +1171,6 @@ function getCurrentLocation(forceCenter = false) {
     { enableHighAccuracy: true, timeout: 100000, maximumAge: 5000 }
   );
 }
- else {
-    Swal.fire('ไม่รองรับ GPS', 'เบราว์เซอร์นี้ไม่รองรับการหาตำแหน่ง', 'error');
-  }
-}
 
         
         function updateCurrentLocationMarker(lat, lng) {
