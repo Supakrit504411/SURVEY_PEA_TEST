@@ -1106,44 +1106,48 @@ function disableLiveMeasure() {
             });
         }
 
-       function getCurrentLocation(forceCenter = false) {
-  if (navigator.geolocation) {
-    Swal.fire({
-      title: 'กำลังค้นหาตำแหน่ง...',
-      allowOutsideClick: false,
-      didOpen: () => { Swal.showLoading(); }
-    });
+function getCurrentLocation(forceCenter = false) {
+  if (!navigator.geolocation) {
+    Swal.fire('ไม่รองรับ GPS', 'เบราว์เซอร์นี้ไม่รองรับการหาตำแหน่ง', 'error');
+    return;
+  }
 
-    if (watchId) navigator.geolocation.clearWatch(watchId);
+  // ใช้ overlay ของเราเอง แทน Swal.showLoading เพื่อไม่ไปรบกวน modal อื่น
+  showLoadingOverlay('กำลังค้นหาตำแหน่ง...');
 
-    watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
+  // เคลียร์ watch เดิมถ้ามี
+  if (watchId) navigator.geolocation.clearWatch(watchId);
 
-        updateCurrentLocationMarker(lat, lng);
+  watchId = navigator.geolocation.watchPosition(
+    (position) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
 
-        // เงื่อนไขใหม่: ถ้าเพิ่งได้ตำแหน่งครั้งแรก หรือผู้ใช้กดปุ่มให้จัดกึ่งกลาง
-        if (!currentLocationMarker || forceCenter) {
-          map.setView([lat, lng], 16);
-        }
+      updateCurrentLocationMarker(lat, lng);
 
-        Swal.close();
-      },
-      (error) => {
-        Swal.close();
-        Swal.fire({
-          title: 'ไม่สามารถหาตำแหน่งได้',
-          text: 'กรุณาเปิด GPS และอนุญาตการเข้าถึงตำแหน่ง',
-          icon: 'error',
-          confirmButtonText: 'ตกลง',
-          allowOutsideClick: false,
-          allowEscapeKey: false
-        });
-      },
-      { enableHighAccuracy: true, timeout: 100000, maximumAge: 5000 }
-    );
-  } else {
+      // จัดกึ่งกลางเมื่อครั้งแรก หรือผู้ใช้กดปุ่มให้จัดกึ่งกลาง
+      if (!currentLocationMarker || forceCenter) {
+        map.setView([lat, lng], 16);
+      }
+
+      // ปิด overlay (ไม่มี Swal.close() อีกแล้ว)
+      hideLoadingOverlay();
+    },
+    (error) => {
+      hideLoadingOverlay();
+      Swal.fire({
+        title: 'ไม่สามารถหาตำแหน่งได้',
+        text: 'กรุณาเปิด GPS และอนุญาตการเข้าถึงตำแหน่ง',
+        icon: 'error',
+        confirmButtonText: 'ตกลง',
+        allowOutsideClick: false,
+        allowEscapeKey: false
+      });
+    },
+    { enableHighAccuracy: true, timeout: 100000, maximumAge: 5000 }
+  );
+}
+ else {
     Swal.fire('ไม่รองรับ GPS', 'เบราว์เซอร์นี้ไม่รองรับการหาตำแหน่ง', 'error');
   }
 }
