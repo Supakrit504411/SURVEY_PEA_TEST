@@ -470,12 +470,17 @@
    </div>
   </div>
   <script>
+	
         // ตัวแปรสำคัญ
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz3sc2q1SQAkeDN1MxHOClJLqPyuSwu7gEkZ_WkuI-FkrUb4tScLt43_TD4jIc1fqZUfw/exec';
         const SHEET_ID = '1gQR42JzTackvfuedJUW5Zm-s9N_sun0mFb8zdOPyeVg';
         const FOLDER_ID = '1AL8KrbctkMQRA_AgmVfMLZU4a76soBX_';
         
-        let map;
+	// === NEW: device helper ===
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+  navigator.userAgent
+);
+	let map;
         let currentSurveyor = '';
         let currentProject = '';
         let surveyPoints = [];
@@ -790,6 +795,38 @@
             });
         }
 
+//222222222222
+// === NEW: live measure toggles ===
+function enableLiveMeasure() {
+  if (!map) return;
+
+  const onMobileMove = () => {
+    if (surveyPoints.length > 0 && !isProjectFinished) {
+      updateTempLine(map.getCenter());
+    }
+  };
+
+  map.__onMobileMove = onMobileMove;
+
+  if (isMobile) {
+    map.on('move', map.__onMobileMove);
+    map.on('touchmove', map.__onMobileMove);
+  }
+}
+
+function disableLiveMeasure() {
+  if (!map) return;
+  if (map.__onMobileMove) {
+    map.off('move', map.__onMobileMove);
+    map.off('touchmove', map.__onMobileMove);
+    map.__onMobileMove = null;
+  }
+  clearDistanceLines?.();
+  document.getElementById('lastDistance').textContent = '0 ม.';
+}
+
+	//222222222222
+
         function initializeMap() {
             setTimeout(() => {
                 try {
@@ -842,6 +879,7 @@
                     map.whenReady(() => {
                         console.log('Map ready');
                         getCurrentLocation();
+			enableLiveMeasure(); // <<< NEW: เปิดโหมดวัดระยะเรียลไทม์
                     });
                     
                     console.log('Map initialized successfully');
@@ -853,40 +891,35 @@
         }
         
         function updateTempLine(latlng) {
-            if (surveyPoints.length > 0) {
-                const lastPoint = surveyPoints[surveyPoints.length - 1];
-                const tempDistance = calculateDistance(
-                    lastPoint.lat, lastPoint.lng,
-                    latlng.lat, latlng.lng
-                );
-                
-                tempLine.setLatLngs([
-                    [lastPoint.lat, lastPoint.lng],
-                    [latlng.lat, latlng.lng]
-                ]);
-                
-                // ลบ label เก่า
-                if (distanceLabel) {
-                    map.removeLayer(distanceLabel);
-                }
-                
-                // เพิ่ม label ระยะทางบนเส้น
-                const midLat = (lastPoint.lat + latlng.lat) / 2;
-                const midLng = (lastPoint.lng + latlng.lng) / 2;
-                
-                distanceLabel = L.marker([midLat, midLng], {
-                    icon: L.divIcon({
-                        className: 'distance-label',
-                        html: `<div class="distance-label">${Math.round(tempDistance)} ม.</div>`,
-                        iconSize: [60, 20],
-                        iconAnchor: [30, 10]
-                    })
-                }).addTo(map);
-                
-                // อัปเดตระยะทางชั่วคราว
-                document.getElementById('lastDistance').textContent = `${Math.round(tempDistance)} ม. (ชั่วคราว)`;
-            }
-        }
+  if (!latlng || surveyPoints.length === 0) return;
+
+  const lastPoint = surveyPoints[surveyPoints.length - 1];
+  const tempDistance = calculateDistance(lastPoint.lat, lastPoint.lng, latlng.lat, latlng.lng);
+
+  tempLine.setLatLngs([
+    [lastPoint.lat, lastPoint.lng],
+    [latlng.lat, latlng.lng]
+  ]);
+
+  if (distanceLabel) {
+    map.removeLayer(distanceLabel);
+  }
+
+  const midLat = (lastPoint.lat + latlng.lat) / 2;
+  const midLng = (lastPoint.lng + latlng.lng) / 2;
+
+  distanceLabel = L.marker([midLat, midLng], {
+    icon: L.divIcon({
+      className: 'distance-label',
+      html: `<div class="distance-label">${Math.round(tempDistance)} ม.</div>`,
+      iconSize: [60, 20],
+      iconAnchor: [30, 10]
+    })
+  }).addTo(map);
+
+  document.getElementById('lastDistance').textContent = `${Math.round(tempDistance)} ม.`; // เด้งแบบเรียลไทม์
+}
+
 
         function showNewProjectModal() {
             document.getElementById('newProjectModal').classList.remove('hidden');
@@ -1228,7 +1261,9 @@
                 document.getElementById('currentPointDisplay').textContent = currentPointNumber;
                 hidePointModal();
                 hideLoadingOverlay();
-                
+                // <<< NEW: เปิดโหมดวัดระยะอีกครั้ง (กรณีถูกปิดตอนเปิด modal) 5555555
+		enableLiveMeasure();
+
                 Swal.fire({
                     title: 'เพิ่มจุดสำเร็จ!',
                     text: 'กรุณาเลือกตำแหน่งจุดถัดไปบนแผนที่',
@@ -1303,7 +1338,7 @@
                 
                 // ลบเส้นประวัดระยะทางและ event listeners ทันที
                 clearAllDistanceElements();
-                
+                disableLiveMeasure(); // <<< NEW 44
                 // ปิด Modal
                 hidePointModal();
                 hideLoadingOverlay();
