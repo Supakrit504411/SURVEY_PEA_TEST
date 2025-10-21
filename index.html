@@ -3165,36 +3165,51 @@ function getCurrentLocation(forceCenter = false) {
             try {
                 showLoadingOverlay('กำลังสร้างไฟล์ KML...');
                 
-                // ลองดาวน์โหลดจาก Google Sheets ก่อน
-                try {
-                    const response = await fetch(`${SCRIPT_URL}?action=generateKML&project=${encodeURIComponent(project)}`);
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        const blob = new Blob([data.kml], { type: 'application/vnd.google-earth.kml+xml' });
-                        const url = window.URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `${project}.kml`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        window.URL.revokeObjectURL(url);
-                        
-                        hideLoadingOverlay();
-                        
-                        Swal.fire({
-                            title: 'ดาวน์โหลดสำเร็จ!',
-                            text: 'ไฟล์ KML ถูกดาวน์โหลดเรียบร้อยแล้ว',
-                            icon: 'success',
-                            confirmButtonText: 'ตกลง',
- 				 allowOutsideClick: false
-                        });
-                        return;
-                    }
-                } catch (error) {
-                    console.log('ไม่สามารถดาวน์โหลดจาก Google Sheets ได้');
-                }
+               // ลองดาวน์โหลดจาก Google Sheets ก่อน (รองรับทั้ง JSON และ KML ตรงๆ)
+try {
+  const response = await fetch(`${SCRIPT_URL}?action=generateKML&project=${encodeURIComponent(project)}`);
+  const raw = await response.text();
+
+  // พยายาม parse เป็น JSON ก่อน
+  let data = null;
+  try { data = JSON.parse(raw); } catch (_) {}
+
+  let kmlPayload = null;
+
+  if (data && data.success && typeof data.kml === 'string' && data.kml.trim()) {
+    // เคส: Apps Script ส่ง JSON { success:true, kml:"..." }
+    kmlPayload = data.kml;
+  } else if (/^\s*<\?xml[\s\S]*<kml[\s\S]*<\/kml>\s*$/i.test(raw) || /^\s*<kml[\s\S]*<\/kml>\s*$/i.test(raw)) {
+    // เคส: ส่ง KML เป็น XML ตรงๆ
+    kmlPayload = raw;
+  }
+
+  if (kmlPayload) {
+    const blob = new Blob([kmlPayload], { type: 'application/vnd.google-earth.kml+xml' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${project}.kml`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    hideLoadingOverlay();
+
+    Swal.fire({
+      title: 'ดาวน์โหลดสำเร็จ!',
+      text: 'ไฟล์ KML ถูกดาวน์โหลดเรียบร้อยแล้ว',
+      icon: 'success',
+      confirmButtonText: 'ตกลง',
+      allowOutsideClick: false
+    });
+    return;
+  }
+} catch (error) {
+  console.log('ไม่สามารถดาวน์โหลดจาก Google Sheets ได้:', error?.message || error);
+}
+
                 
                 // สร้าง KML จากข้อมูลในแดชบอร์ด
                 const projectPoints = allProjectData.filter(row => row[1] === project);
