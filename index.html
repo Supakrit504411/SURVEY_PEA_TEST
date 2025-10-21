@@ -1509,10 +1509,9 @@ function disableLiveMeasure() {
                         title: 'ล้างข้อมูลแล้ว!',
                         text: 'ข้อมูลโครงการถูกล้างเรียบร้อยแล้ว',
                         icon: 'success',
-                        timer: 20000,
-                        showConfirmButton: false,
-                        allowOutsideClick: false,
-                        allowEscapeKey: false
+                        confirmButtonText: 'ตกลง',
+  			allowOutsideClick: false,
+  			allowEscapeKey: false
                     });
                 }
             });
@@ -2910,68 +2909,85 @@ function disableLiveMeasure() {
         }
 
         async function updateProjectStatus(project, status) {
-            try {
-                showLoadingOverlay('กำลังอัปเดตสถานะ...');
-                
-                // ลองอัปเดตใน Google Sheets ก่อน
-                let updatedInSheets = false;
-                try {
-                    const params = new URLSearchParams({
-  action: 'updateStatus',
-  project: project,
-  status: status
-});
+  try {
+    showLoadingOverlay('กำลังอัปเดตสถานะ...');
 
-const response = await fetch(SCRIPT_URL, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-  body: params.toString()
-});
-const result = await response.json();
-if (result.success) { updatedInSheets = true; }
+    // 1) พยายามอัปเดตลง Google Sheets ก่อน
+    let updatedInSheets = false;
+    try {
+      const params = new URLSearchParams({
+        action: 'updateStatus',
+        project: project,
+        status: status,
+        sheetId: SHEET_ID   // <<< ส่ง sheetId ไปฝั่ง Apps Script
+      });
 
-                } catch (error) {
-                    console.log('ไม่สามารถอัปเดตใน Google Sheets ได้');
-                }
-                
-                // อัปเดตข้อมูลในตัวแปรท้องถิ่น
-                allProjectData.forEach(row => {
-                    if (row[1] === project) {
-                        row[11] = status;
-                    }
-                });
-                
-                // อัปเดตใน localStorage ถ้ามีข้อมูล
-                const localData = JSON.parse(localStorage.getItem('surveyData') || '[]');
-                const projectIndex = localData.findIndex(p => p.project === project);
-                if (projectIndex !== -1) {
-                    localData[projectIndex].saved = (status === 'เขียนผังแล้ว');
-                    localStorage.setItem('surveyData', JSON.stringify(localData));
-                }
-                
-                // อัปเดตตารางทันที
-                updateProjectTable(allProjectData);
-                
-                hideLoadingOverlay();
-                
-                const message = updatedInSheets ? 
-                    'อัปเดตสถานะโครงการเรียบร้อยแล้ว' : 
-                    'อัปเดตสถานะในเครื่องเรียบร้อยแล้ว (ยังไม่ได้ซิงค์กับ Google Sheets)';
-                
-                Swal.fire({
-                    title: 'อัปเดตสำเร็จ!',
-                    text: message,
-                    icon: 'success',
-                    timer: 20000,
-                    showConfirmButton: false
-                });
-                
-            } catch (error) {
-                console.error('Error updating status:', error);
-                hideLoadingOverlay();
-                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถอัปเดตสถานะได้: ' + error.message, 'error');
-            }
-        }
+      const response = await fetch(SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+        body: params.toString()
+      });
+
+      // บางครั้ง GAS อาจส่ง text ธรรมดา กลับมาแทน JSON — เรารองรับทั้งสองกรณี
+      const raw = await response.text();
+      let result = {};
+      try { result = JSON.parse(raw); } catch (_) { /* not JSON */ }
+
+      // ยอมรับทั้งรูปแบบ {success:true} หรือ {status:"ok"} หรือแม้กระทั่งข้อความมีคำว่า ok/success
+      updatedInSheets =
+        (result && (result.success === true || result.status === 'ok')) ||
+        /"success"\s*:\s*true/i.test(raw) ||
+        /\bok\b|\bsuccess\b/i.test(raw);
+    } catch (err) {
+      console.log('อัปเดต Google Sheets ล้มเหลว:', err);
+    }
+
+    // 2) อัปเดตข้อมูลในหน่วยความจำของแอป (แดชบอร์ด)
+    allProjectData.forEach(row => {
+      if (row[1] === project) {
+        row[11] = status; // คอลัมน์ L (index 11) = Status
+      }
+    });
+
+    // 3) อัปเดตใน localStorage ถ้ามี
+    const localData = JSON.parse(localStorage.getItem('surveyData') || '[]');
+    const projectIndex = localData.findIndex(p => p.project === project);
+    if (projectIndex !== -1) {
+      localData[projectIndex].saved = (status === 'เขียนผังแล้ว');
+      localStorage.setItem('surveyData', JSON.stringify(localData));
+    }
+
+    // 4) รีเฟรชตารางแดชบอร์ด
+    updateProjectTable(allProjectData);
+
+    hideLoadingOverlay();
+
+    // 5) แจ้งผลแบบ "ต้องกดเอง" (ไม่มี timer)
+    const message = updatedInSheets
+      ? 'อัปเดตสถานะโครงการเรียบร้อยแล้ว'
+      : 'อัปเดตสถานะในเครื่องเรียบร้อยแล้ว (ยังไม่ได้ซิงค์กับ Google Sheets)';
+
+    Swal.fire({
+      title: 'อัปเดตสำเร็จ!',
+      text: message,
+      icon: 'success',
+      confirmButtonText: 'ตกลง',
+      allowOutsideClick: false,
+      allowEscapeKey: false
+    });
+  } catch (error) {
+    hideLoadingOverlay();
+    Swal.fire({
+      title: 'เกิดข้อผิดพลาด',
+      text: 'ไม่สามารถอัปเดตสถานะได้: ' + (error?.message || ''),
+      icon: 'error',
+      confirmButtonText: 'ตกลง',
+      allowOutsideClick: false,
+      allowEscapeKey: false
+    });
+  }
+}
+
 
         async function exportLocalData() {
             try {
@@ -3028,8 +3044,7 @@ if (result.success) { updatedInSheets = true; }
                 title: 'ส่งออกสำเร็จ!',
                 text: 'ไฟล์ JSON ถูกดาวน์โหลดเรียบร้อยแล้ว',
                 icon: 'success',
-                timer: 20000,
-                showConfirmButton: false
+                confirmButtonText: 'ตกลง'
             });
         }
         
